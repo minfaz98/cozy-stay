@@ -71,10 +71,13 @@ const Navbar = () => {
                 </NavigationMenuContent>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <Link to="/reservations" className="navigation-link flex items-center gap-1">
+                <Link to="/check-availability" className="navigation-link flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  <span>Reservations</span>
+                  <span>Check Availability</span>
                 </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/reservations" className="navigation-link">Reservations</Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <Link to="/contact" className="navigation-link">Contact</Link>
@@ -123,6 +126,15 @@ const Navbar = () => {
                 onClick={() => setIsOpen(false)}
               >
                 Rooms & Suites
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/check-availability" 
+                className="navigation-link block py-2 border-b border-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                Check Availability
               </Link>
             </li>
             <li>

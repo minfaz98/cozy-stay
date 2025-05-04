@@ -14,6 +14,9 @@ import StandardRoom from "./pages/rooms/StandardRoom";
 import ExecutiveSuite from "./pages/rooms/ExecutiveSuite";
 import TwinRoom from "./pages/rooms/TwinRoom";
 import LuxurySuite from "./pages/rooms/LuxurySuite";
+import CheckAvailability from "./pages/CheckAvailability";
+import ReservationsPage from "./pages/ReservationsPage";
+import ContactPage from "./pages/ContactPage";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +36,9 @@ const App = () => (
           <Route path="/rooms/executive" element={<ExecutiveSuite />} />
           <Route path="/rooms/twin" element={<TwinRoom />} />
           <Route path="/rooms/luxury-suite" element={<LuxurySuite />} />
+          <Route path="/check-availability" element={<CheckAvailability />} />
+          <Route path="/reservations" element={<ReservationsPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
