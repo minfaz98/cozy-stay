@@ -5,25 +5,127 @@ import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarIcon, Users, BedDouble } from 'lucide-react';
+import { CalendarIcon, Users, BedDouble, CheckCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+
+// Room type definition
+interface Room {
+  id: string;
+  type: string;
+  description: string;
+  capacity: number;
+  price: number;
+  image: string;
+}
 
 const CheckAvailability = () => {
   const [checkInDate, setCheckInDate] = useState<Date | undefined>(undefined);
   const [checkOutDate, setCheckOutDate] = useState<Date | undefined>(undefined);
   const [guests, setGuests] = useState('2');
   const [roomType, setRoomType] = useState('any');
+  const [availableRooms, setAvailableRooms] = useState<Room[] | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [specialRequests, setSpecialRequests] = useState('');
+  const { toast } = useToast();
+
+  // Mock room data - in a real app, this would come from an API
+  const mockRooms: Room[] = [
+    {
+      id: '1',
+      type: 'standard',
+      description: 'Standard Room with queen-sized bed',
+      capacity: 2,
+      price: 119,
+      image: 'https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg'
+    },
+    {
+      id: '2',
+      type: 'deluxe',
+      description: 'Deluxe Room with king-sized bed and city view',
+      capacity: 2,
+      price: 159,
+      image: 'https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg'
+    },
+    {
+      id: '3',
+      type: 'twin',
+      description: 'Twin Room with two double beds',
+      capacity: 4,
+      price: 129,
+      image: 'https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg'
+    },
+    {
+      id: '4',
+      type: 'executive',
+      description: 'Executive Suite with separate living area',
+      capacity: 2,
+      price: 249,
+      image: 'https://images.pexels.com/photos/7534561/pexels-photo-7534561.jpeg'
+    },
+    {
+      id: '5',
+      type: 'luxury',
+      description: 'Luxury Suite with panoramic views',
+      capacity: 2,
+      price: 399,
+      image: 'https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg'
+    }
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Process availability check (would connect to backend API)
+    
+    if (!checkInDate || !checkOutDate) {
+      toast({
+        title: "Missing dates",
+        description: "Please select both check-in and check-out dates.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Process availability check
     console.log('Checking availability:', { checkInDate, checkOutDate, guests, roomType });
-    // In a real app, this would trigger an API call and handle the response
+    
+    // Filter rooms based on selection
+    const guestsCount = parseInt(guests, 10);
+    let filtered = mockRooms.filter(room => room.capacity >= guestsCount);
+    
+    if (roomType !== 'any') {
+      filtered = filtered.filter(room => room.type === roomType);
+    }
+    
+    setAvailableRooms(filtered);
+    setHasSearched(true);
+    
+    // Scroll to results
+    setTimeout(() => {
+      document.getElementById('availability-results')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+
+    // Show success toast
+    toast({
+      title: "Search Complete!",
+      description: `Found ${filtered.length} available room${filtered.length === 1 ? '' : 's'} for your dates.`,
+      duration: 3000,
+    });
+  };
+
+  const handleBookRoom = (room: Room) => {
+    toast({
+      title: "Room Selected",
+      description: `You've selected the ${room.type} room. Proceeding to booking.`,
+      duration: 3000,
+    });
+    // In a real app, this would navigate to a booking form or add to cart
   };
 
   return (
@@ -144,6 +246,18 @@ const CheckAvailability = () => {
                   </div>
                 </div>
                 
+                {/* Special Requests */}
+                <div className="space-y-2">
+                  <Label htmlFor="special-requests">Special Requests (Optional)</Label>
+                  <Textarea 
+                    id="special-requests"
+                    placeholder="Let us know if you have any special requests or requirements..."
+                    value={specialRequests}
+                    onChange={(e) => setSpecialRequests(e.target.value)}
+                    className="min-h-[80px]"
+                  />
+                </div>
+                
                 <Separator />
                 
                 <Button 
@@ -159,6 +273,80 @@ const CheckAvailability = () => {
               <p>Best rate guarantee when booking directly through our website.</p>
             </CardFooter>
           </Card>
+          
+          {/* Search Results */}
+          {hasSearched && (
+            <div id="availability-results" className="mt-12 max-w-6xl mx-auto">
+              <h2 className="text-2xl md:text-3xl font-display font-bold mb-6">
+                Available Rooms
+                {checkInDate && checkOutDate && (
+                  <span className="text-lg font-normal text-gray-600 block mt-2">
+                    {format(checkInDate, "MMM d, yyyy")} - {format(checkOutDate, "MMM d, yyyy")}
+                  </span>
+                )}
+              </h2>
+              
+              {availableRooms && availableRooms.length > 0 ? (
+                <div className="space-y-6">
+                  {availableRooms.map((room) => (
+                    <Card key={room.id} className="overflow-hidden">
+                      <div className="md:flex">
+                        <div className="md:w-1/3 h-48 md:h-auto relative">
+                          <img 
+                            src={room.image} 
+                            alt={room.type} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="md:w-2/3 p-6">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="text-xl font-display font-semibold capitalize">
+                                {room.type} Room
+                              </h3>
+                              <p className="text-gray-600 mt-1">{room.description}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-semibold">${room.price}</div>
+                              <div className="text-sm text-gray-500">per night</div>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 flex items-center text-sm text-gray-500">
+                            <Users className="h-4 w-4 mr-1" /> 
+                            <span>Up to {room.capacity} {room.capacity === 1 ? 'guest' : 'guests'}</span>
+                          </div>
+                          
+                          <div className="flex mt-6 justify-end gap-3">
+                            <Button 
+                              variant="outline" 
+                              asChild
+                            >
+                              <Link to={`/rooms/${room.type === 'luxury' ? 'luxury-suite' : room.type}`}>
+                                View Details
+                              </Link>
+                            </Button>
+                            <Button 
+                              onClick={() => handleBookRoom(room)}
+                              className="bg-hotel hover:bg-hotel-light"
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Book Now
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="p-6 text-center">
+                  <p className="text-lg mb-2">No rooms available for your selected criteria.</p>
+                  <p className="text-gray-600">Please try different dates or room types.</p>
+                </Card>
+              )}
+            </div>
+          )}
           
           {/* Additional Information */}
           <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
