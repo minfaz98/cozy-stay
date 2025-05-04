@@ -1,0 +1,187 @@
+
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from '@/components/ui/navigation-menu';
+import { cn } from '@/lib/utils';
+import { Menu, X, User, Home, Calendar, Hotel, Bell } from 'lucide-react';
+
+const Navbar = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleMenu = () => {
+    setIsOpen(!isOpen);
+  };
+
+  return (
+    <nav className="bg-white shadow-md py-4 sticky top-0 z-50">
+      <div className="hotel-container flex items-center justify-between">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2">
+          <Hotel className="h-8 w-8 text-hotel-accent" />
+          <span className="text-2xl font-display font-bold text-hotel">CozyStay</span>
+        </Link>
+
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-8">
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <Link to="/" className="navigation-link flex items-center gap-1">
+                  <Home className="h-4 w-4" />
+                  <span>Home</span>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger className="navigation-link">Rooms</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid gap-3 p-4 w-[400px] md:w-[500px] grid-cols-2">
+                    <li className="row-span-3">
+                      <NavigationMenuLink asChild>
+                        <Link
+                          to="/rooms/luxury-suite"
+                          className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-hotel to-hotel-dark p-6 no-underline outline-none focus:shadow-md"
+                        >
+                          <div className="mt-4 mb-2 text-lg font-medium text-white">
+                            Luxury Suite
+                          </div>
+                          <p className="text-sm leading-tight text-white/90">
+                            Experience unparalleled luxury with our premium suites.
+                          </p>
+                        </Link>
+                      </NavigationMenuLink>
+                    </li>
+                    <ListItem href="/rooms/standard" title="Standard Room">
+                      Comfortable and affordable accommodations.
+                    </ListItem>
+                    <ListItem href="/rooms/deluxe" title="Deluxe Room">
+                      Spacious rooms with premium amenities.
+                    </ListItem>
+                    <ListItem href="/rooms/executive" title="Executive Suite">
+                      Business-ready suites with work areas.
+                    </ListItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/reservations" className="navigation-link flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>Reservations</span>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/contact" className="navigation-link">Contact</Link>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
+
+          {/* Login/Register buttons */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/login">Login</Link>
+            </Button>
+            <Button className="bg-hotel hover:bg-hotel-light" size="sm" asChild>
+              <Link to="/register">Register</Link>
+            </Button>
+          </div>
+        </div>
+
+        {/* Mobile menu button */}
+        <button 
+          onClick={toggleMenu}
+          className="md:hidden text-hotel"
+          aria-label="Toggle menu"
+        >
+          {isOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      {/* Mobile Navigation */}
+      {isOpen && (
+        <div className="md:hidden bg-white pt-2 pb-4 px-4 animate-fade-in">
+          <ul className="space-y-4">
+            <li>
+              <Link 
+                to="/" 
+                className="navigation-link block py-2 border-b border-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                Home
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/rooms" 
+                className="navigation-link block py-2 border-b border-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                Rooms & Suites
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/reservations" 
+                className="navigation-link block py-2 border-b border-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                Reservations
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/contact" 
+                className="navigation-link block py-2 border-b border-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                Contact
+              </Link>
+            </li>
+            <li className="flex gap-2 pt-2">
+              <Button variant="outline" size="sm" className="w-1/2" asChild>
+                <Link to="/login">Login</Link>
+              </Button>
+              <Button className="bg-hotel hover:bg-hotel-light w-1/2" size="sm" asChild>
+                <Link to="/register">Register</Link>
+              </Button>
+            </li>
+          </ul>
+        </div>
+      )}
+    </nav>
+  );
+};
+
+const ListItem = React.forwardRef<
+  React.ElementRef<"a">,
+  React.ComponentPropsWithoutRef<"a">
+>(({ className, title, children, ...props }, ref) => {
+  return (
+    <li>
+      <NavigationMenuLink asChild>
+        <a
+          ref={ref}
+          className={cn(
+            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+            className
+          )}
+          {...props}
+        >
+          <div className="text-sm font-medium leading-none">{title}</div>
+          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+            {children}
+          </p>
+        </a>
+      </NavigationMenuLink>
+    </li>
+  );
+});
+ListItem.displayName = "ListItem";
+
+export default Navbar;

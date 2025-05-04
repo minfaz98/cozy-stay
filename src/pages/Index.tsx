@@ -1,13 +1,346 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React from 'react';
+import { format } from 'date-fns';
+import { Calendar as CalendarIcon, Search, Bed, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import Layout from '@/components/Layout';
+import { Link } from 'react-router-dom';
+import { Card, CardContent } from '@/components/ui/card';
+
+interface RoomProps {
+  imgSrc: string;
+  title: string;
+  description: string;
+  price: number;
+  amenities: string[];
+  href: string;
+}
+
+const RoomCard: React.FC<RoomProps> = ({ imgSrc, title, description, price, amenities, href }) => {
+  return (
+    <Card className="overflow-hidden card-shadow">
+      <div className="relative h-48 w-full overflow-hidden">
+        <div 
+          className="h-full w-full bg-cover bg-center" 
+          style={{ backgroundImage: `url('${imgSrc}')` }}
+        />
+        <div className="absolute top-0 right-0 bg-hotel-accent text-white px-3 py-1 m-2 rounded">
+          ${price}/night
+        </div>
+      </div>
+      <CardContent className="p-4">
+        <h3 className="text-xl font-display font-semibold mb-2">{title}</h3>
+        <p className="text-gray-600 mb-2 text-sm line-clamp-2">{description}</p>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {amenities.map((amenity, index) => (
+            <span 
+              key={index} 
+              className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full"
+            >
+              {amenity}
+            </span>
+          ))}
+        </div>
+        <Button className="w-full bg-hotel hover:bg-hotel-light" asChild>
+          <Link to={href}>View Details</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
+const FeaturedRooms: React.FC = () => {
+  const rooms = [
+    {
+      imgSrc: "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg",
+      title: "Deluxe King Room",
+      description: "Spacious room with king-sized bed and city view",
+      price: 159,
+      amenities: ["King Bed", "City View", "Free Wi-Fi", "Room Service"],
+      href: "/rooms/deluxe"
+    },
+    {
+      imgSrc: "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg",
+      title: "Premium Twin Room",
+      description: "Comfortable room with two double beds",
+      price: 129,
+      amenities: ["Twin Beds", "Bathtub", "Free Wi-Fi", "Breakfast"],
+      href: "/rooms/twin"
+    },
+    {
+      imgSrc: "https://images.pexels.com/photos/7534561/pexels-photo-7534561.jpeg",
+      title: "Executive Suite",
+      description: "Luxury suite with separate living area and premium amenities",
+      price: 249,
+      amenities: ["King Bed", "Lounge Area", "Mini Bar", "Ocean View"],
+      href: "/rooms/executive"
+    },
+  ];
+
+  return (
+    <section className="py-12 bg-white">
+      <div className="hotel-container">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-display font-bold text-hotel mb-2">Featured Rooms</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Experience unparalleled comfort in our carefully designed rooms and suites
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {rooms.map((room, index) => (
+            <RoomCard key={index} {...room} />
+          ))}
+        </div>
+        <div className="text-center mt-8">
+          <Button variant="outline" size="lg" className="border-hotel text-hotel hover:bg-hotel hover:text-white" asChild>
+            <Link to="/rooms">View All Rooms</Link>
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const AmenitiesSection: React.FC = () => {
+  const amenities = [
+    { icon: '🍽️', title: 'Fine Dining', description: 'Gourmet restaurant with international cuisine' },
+    { icon: '🏊', title: 'Swimming Pool', description: 'Outdoor pool with lounge area and bar' },
+    { icon: '💆', title: 'Spa & Wellness', description: 'Full-service spa with massage and treatments' },
+    { icon: '🏋️', title: 'Fitness Center', description: '24/7 access to modern gym equipment' }
+  ];
+
+  return (
+    <section className="py-12 bg-gray-50">
+      <div className="hotel-container">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-display font-bold text-hotel mb-2">Hotel Amenities</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Enjoy our premium facilities designed for your comfort and convenience
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {amenities.map((amenity, index) => (
+            <div 
+              key={index}
+              className="bg-white p-6 rounded-lg shadow-md text-center hover:-translate-y-1 transition-transform duration-300"
+            >
+              <div className="text-4xl mb-4">{amenity.icon}</div>
+              <h3 className="text-xl font-display font-semibold mb-2">{amenity.title}</h3>
+              <p className="text-gray-600">{amenity.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const TestimonialsSection: React.FC = () => {
+  const testimonials = [
+    {
+      text: "Our stay at CozyStay was exceptional. The staff was attentive and the room exceeded our expectations.",
+      author: "Sarah Johnson",
+      title: "Business Traveler"
+    },
+    {
+      text: "The perfect getaway! Beautiful rooms, amazing service, and the restaurant serves delicious food.",
+      author: "Michael Chen",
+      title: "Family Vacation"
+    },
+    {
+      text: "We had our company retreat here and everything was perfect. Highly recommend for business events.",
+      author: "Emily Rodriguez",
+      title: "Corporate Client"
+    }
+  ];
+
+  return (
+    <section className="py-12 bg-white">
+      <div className="hotel-container">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-display font-bold text-hotel mb-2">Guest Experiences</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Don't just take our word for it - hear what our guests have to say
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {testimonials.map((testimonial, index) => (
+            <div 
+              key={index}
+              className="bg-gray-50 p-6 rounded-lg border border-gray-100"
+            >
+              <p className="text-gray-600 mb-4 italic">"{testimonial.text}"</p>
+              <div>
+                <p className="font-semibold">{testimonial.author}</p>
+                <p className="text-sm text-gray-500">{testimonial.title}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const Index = () => {
+  const [checkInDate, setCheckInDate] = React.useState<Date | undefined>(new Date());
+  const [checkOutDate, setCheckOutDate] = React.useState<Date | undefined>(
+    new Date(new Date().setDate(new Date().getDate() + 1))
+  );
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <Layout>
+      {/* Hero Section */}
+      <section 
+        className="relative h-[80vh] min-h-[600px] bg-cover bg-center flex items-center"
+        style={{ backgroundImage: 'url("https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2")' }}
+      >
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="hotel-container relative z-10 text-white">
+          <div className="max-w-2xl">
+            <h1 className="text-5xl font-display font-bold mb-4">Experience Luxury & Comfort</h1>
+            <p className="text-xl mb-8">Discover the perfect balance of hospitality, luxury, and comfort at CozyStay.</p>
+            <Button size="lg" className="bg-hotel-accent hover:brightness-110 text-white">
+              Explore Rooms
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Booking Form */}
+      <section className="bg-white py-6 shadow-md relative z-20 -mt-20 rounded-lg mx-4 lg:mx-auto max-w-5xl">
+        <div className="px-6 py-4">
+          <h2 className="text-2xl font-display font-bold text-hotel mb-6">Book Your Stay</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Check-in Date */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Check-in Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !checkInDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {checkInDate ? format(checkInDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={checkInDate}
+                    onSelect={setCheckInDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Check-out Date */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Check-out Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !checkOutDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {checkOutDate ? format(checkOutDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={checkOutDate}
+                    onSelect={setCheckOutDate}
+                    initialFocus
+                    disabled={(date) => date < (checkInDate || new Date())}
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Room Type */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Room Type</label>
+              <Select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select room type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Room Types</SelectLabel>
+                    <SelectItem value="standard">Standard Room</SelectItem>
+                    <SelectItem value="deluxe">Deluxe Room</SelectItem>
+                    <SelectItem value="executive">Executive Suite</SelectItem>
+                    <SelectItem value="family">Family Suite</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Search Button */}
+            <div className="flex items-end">
+              <Button className="w-full bg-hotel hover:bg-hotel-light">
+                <Search className="mr-2 h-4 w-4" /> Check Availability
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Rooms */}
+      <FeaturedRooms />
+
+      {/* Amenities */}
+      <AmenitiesSection />
+
+      {/* Testimonials */}
+      <TestimonialsSection />
+
+      {/* CTA Section */}
+      <section className="py-16 bg-hotel text-white">
+        <div className="hotel-container text-center">
+          <h2 className="text-3xl font-display font-bold mb-4">Ready to experience luxury?</h2>
+          <p className="text-xl mb-8 max-w-2xl mx-auto">
+            Book your stay today and enjoy special rates and complimentary amenities.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Button size="lg" className="bg-hotel-accent hover:brightness-110 text-white">
+              Book Now
+            </Button>
+            <Button size="lg" variant="outline" className="text-white border-white hover:bg-white hover:text-hotel">
+              Contact Us
+            </Button>
+          </div>
+        </div>
+      </section>
+    </Layout>
   );
 };
 
