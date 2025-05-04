@@ -1,12 +1,23 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Layout from '@/components/Layout';
 import RoomFeature from '@/components/RoomFeature';
 import RoomGallery from '@/components/RoomGallery';
-import { Calendar, Users, Bed, Hotel } from 'lucide-react';
+import { Calendar, Users, Bed, Hotel, CheckCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 export interface RoomDetailProps {
   title: string;
@@ -34,6 +45,41 @@ const RoomDetail: React.FC<RoomDetailProps> = ({
   images,
   longDescription,
 }) => {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
+  const [specialRequests, setSpecialRequests] = useState('');
+  
+  // Function to handle the Book Now button click
+  const handleBookNow = () => {
+    setIsBookingDialogOpen(true);
+  };
+  
+  // Function to handle the confirmation of booking
+  const handleConfirmBooking = () => {
+    // Close the dialog
+    setIsBookingDialogOpen(false);
+    
+    // Show success toast
+    toast({
+      title: "Booking Successful!",
+      description: `You have booked the ${title}. Check your email for confirmation details.`,
+      duration: 5000,
+    });
+    
+    // In a real app, here we would submit the booking data to a backend
+    console.log("Booking confirmed for:", {
+      room: title,
+      price,
+      specialRequests
+    });
+    
+    // Navigate to reservations page
+    setTimeout(() => {
+      navigate('/reservations');
+    }, 2000);
+  };
+
   return (
     <Layout>
       <div className="py-8 px-4 sm:px-6 lg:px-8 bg-gray-50">
@@ -159,7 +205,11 @@ const RoomDetail: React.FC<RoomDetailProps> = ({
                   </Button>
                 </div>
                 
-                <Button className="w-full bg-hotel hover:bg-hotel-light mb-4">
+                <Button 
+                  className="w-full bg-hotel hover:bg-hotel-light mb-4"
+                  onClick={handleBookNow}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
                   Book Now
                 </Button>
                 
@@ -171,6 +221,40 @@ const RoomDetail: React.FC<RoomDetailProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Booking Confirmation Dialog */}
+      <AlertDialog open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to book the {title} at ${price} per night.
+              <div className="mt-4 space-y-2">
+                <p className="font-medium">Room Details:</p>
+                <p>• Capacity: {capacity} {capacity > 1 ? 'persons' : 'person'}</p>
+                <p>• Bed: {bedType}</p>
+                <p>• Size: {size} sq ft</p>
+              </div>
+              
+              <div className="mt-4">
+                <label className="block text-sm font-medium mb-2">
+                  Any special requests? (optional)
+                </label>
+                <Textarea
+                  placeholder="E.g., early check-in, specific floor, etc."
+                  value={specialRequests}
+                  onChange={(e) => setSpecialRequests(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmBooking}>Confirm Booking</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };
