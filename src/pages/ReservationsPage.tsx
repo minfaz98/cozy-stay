@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, Clock, AlertCircle, FileText, CreditCard } from 'lucide-react';
 import RoomFeature from '@/components/RoomFeature';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -28,8 +30,31 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+// Define the Reservation type with all required properties
+interface Reservation {
+  id: string;
+  roomType: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  status: string;
+  paymentStatus: string;
+  totalAmount: string;
+  bookedOn: string;
+  cancellationReason?: string; // Make it optional with ?
+}
+
+// Define the NoShowReport type
+interface NoShowReport {
+  id: string;
+  date: string;
+  totalReservations: number;
+  noShowCount: number;
+  revenue: string;
+}
+
 // Mock reservations data (in a real app, this would come from an API)
-const mockReservations = [
+const mockReservations: Reservation[] = [
   {
     id: 'res-001',
     roomType: 'Deluxe Room',
@@ -66,7 +91,7 @@ const mockReservations = [
 ];
 
 // Mock no-show reports
-const mockNoShowReports = [
+const mockNoShowReports: NoShowReport[] = [
   {
     id: 'rep-001',
     date: '2025-04-28',
@@ -85,14 +110,15 @@ const mockNoShowReports = [
 
 const ReservationsPage = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [confirmationNumber, setConfirmationNumber] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showCancellationAlert, setShowCancellationAlert] = useState(false);
-  const [reservationToBill, setReservationToBill] = useState<any>(null);
+  const [reservationToBill, setReservationToBill] = useState<Reservation | null>(null);
   const [showBillingDialog, setShowBillingDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [localReservations, setLocalReservations] = useState(mockReservations);
+  const [localReservations, setLocalReservations] = useState<Reservation[]>(mockReservations);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showAutoCancelInfo, setShowAutoCancelInfo] = useState(false);
   
@@ -127,12 +153,24 @@ const ReservationsPage = () => {
     e.preventDefault();
     // In a real app, this would validate credentials via API
     setIsLoggedIn(true);
+    
+    toast({
+      title: "Login Successful",
+      description: "You are now viewing your reservations.",
+      duration: 3000,
+    });
   };
   
   const handleFindReservation = (e: React.FormEvent) => {
     e.preventDefault();
     // In a real app, this would search for the reservation
     setIsLoggedIn(true);
+    
+    toast({
+      title: "Reservation Found",
+      description: `Found reservation with confirmation number: ${confirmationNumber}`,
+      duration: 3000,
+    });
   };
 
   // Function to handle auto-cancellation of unpaid bookings
@@ -182,6 +220,56 @@ const ReservationsPage = () => {
     // In a real app, this would generate a proper report and possibly offer download
     console.log("Generating no-show report...");
     setShowReportDialog(true);
+  };
+
+  // Function to view reservation details
+  const handleViewDetails = (reservation: Reservation) => {
+    // In a real app, this would take you to a detailed view page
+    toast({
+      title: "Viewing Reservation",
+      description: `Details for ${reservation.id} - ${reservation.roomType}`,
+      duration: 3000,
+    });
+    // You could also navigate to a details page
+    // navigate(`/reservations/${reservation.id}`);
+  };
+
+  // Function to modify reservation
+  const handleModifyReservation = (reservation: Reservation) => {
+    toast({
+      title: "Modify Reservation",
+      description: `You can now edit ${reservation.id} - ${reservation.roomType}`,
+      duration: 3000,
+    });
+    // navigate(`/reservations/edit/${reservation.id}`);
+  };
+
+  // Function to cancel reservation
+  const handleCancelReservation = (reservation: Reservation) => {
+    const updatedReservations = localReservations.map(res => {
+      if (res.id === reservation.id) {
+        return { ...res, status: 'cancelled', cancellationReason: 'Customer requested cancellation' };
+      }
+      return res;
+    });
+    
+    setLocalReservations(updatedReservations);
+    
+    toast({
+      title: "Reservation Cancelled",
+      description: `${reservation.id} - ${reservation.roomType} has been cancelled.`,
+      duration: 3000,
+    });
+  };
+
+  // Function to navigate to make a new reservation
+  const handleMakeReservation = () => {
+    navigate('/check-availability');
+  };
+
+  // Function to redirect to contact page
+  const handleContactUs = () => {
+    navigate('/contact');
   };
 
   return (
@@ -391,11 +479,15 @@ const ReservationsPage = () => {
                         </div>
                       </CardContent>
                       <CardFooter className="flex flex-wrap gap-2">
-                        <Button variant="outline">View Details</Button>
+                        <Button variant="outline" onClick={() => handleViewDetails(reservation)}>View Details</Button>
                         {reservation.status !== 'cancelled' && reservation.status !== 'no-show' && (
                           <>
-                            <Button variant="outline">Modify</Button>
-                            <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <Button variant="outline" onClick={() => handleModifyReservation(reservation)}>Modify</Button>
+                            <Button 
+                              variant="outline" 
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleCancelReservation(reservation)}
+                            >
                               Cancel Reservation
                             </Button>
                           </>
@@ -421,7 +513,7 @@ const ReservationsPage = () => {
                 <Card className="text-center p-8">
                   <h3 className="text-xl font-medium mb-2">No Reservations Found</h3>
                   <p className="text-muted-foreground mb-6">You don't have any active reservations at the moment.</p>
-                  <Button asChild>
+                  <Button asChild onClick={handleMakeReservation}>
                     <a href="/check-availability">Make a Reservation</a>
                   </Button>
                 </Card>
@@ -433,8 +525,8 @@ const ReservationsPage = () => {
             <div className="p-4 text-center">
               <h3 className="font-display text-xl mb-2">Need Assistance?</h3>
               <p className="text-gray-600">Our reservations team is available 24/7 to help with any questions.</p>
-              <Button variant="link" asChild>
-                <a href="/contact">Contact Us</a>
+              <Button variant="link" onClick={handleContactUs}>
+                Contact Us
               </Button>
             </div>
             <div className="p-4 text-center">
