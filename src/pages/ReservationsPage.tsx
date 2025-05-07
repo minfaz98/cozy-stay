@@ -29,68 +29,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useAuth } from '@/context/AuthContext';
+import { useReservations } from '@/hooks/useReservations';
+import { Reservation, NoShowReport } from '@/types/reservation';
+import { format } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Define the Reservation type with all required properties
-interface Reservation {
-  id: string;
-  roomType: string;
-  checkIn: string;
-  checkOut: string;
-  guests: number;
-  status: string;
-  paymentStatus: string;
-  totalAmount: string;
-  bookedOn: string;
-  cancellationReason?: string; // Make it optional with ?
-}
-
-// Define the NoShowReport type
-interface NoShowReport {
-  id: string;
-  date: string;
-  totalReservations: number;
-  noShowCount: number;
-  revenue: string;
-}
-
-// Mock reservations data (in a real app, this would come from an API)
-const mockReservations: Reservation[] = [
-  {
-    id: 'res-001',
-    roomType: 'Deluxe Room',
-    checkIn: '2025-06-15',
-    checkOut: '2025-06-18',
-    guests: 2,
-    status: 'confirmed',
-    paymentStatus: 'paid',
-    totalAmount: '$780.00',
-    bookedOn: '2025-05-01',
-  },
-  {
-    id: 'res-002',
-    roomType: 'Executive Suite',
-    checkIn: '2025-07-22',
-    checkOut: '2025-07-25',
-    guests: 3,
-    status: 'pending',
-    paymentStatus: 'unpaid',
-    totalAmount: '$1,250.00',
-    bookedOn: '2025-05-02',
-  },
-  {
-    id: 'res-003',
-    roomType: 'Standard Room',
-    checkIn: '2025-05-10',
-    checkOut: '2025-05-12',
-    guests: 1,
-    status: 'confirmed',
-    paymentStatus: 'unpaid',
-    totalAmount: '$420.00',
-    bookedOn: '2025-05-03',
-  }
-];
-
-// Mock no-show reports
+// Mock no-show reports data (in a real app, this would come from an API)
 const mockNoShowReports: NoShowReport[] = [
   {
     id: 'rep-001',
@@ -111,16 +56,28 @@ const mockNoShowReports: NoShowReport[] = [
 const ReservationsPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, isLoading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [confirmationNumber, setConfirmationNumber] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showCancellationAlert, setShowCancellationAlert] = useState(false);
   const [reservationToBill, setReservationToBill] = useState<Reservation | null>(null);
   const [showBillingDialog, setShowBillingDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
-  const [localReservations, setLocalReservations] = useState<Reservation[]>(mockReservations);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showAutoCancelInfo, setShowAutoCancelInfo] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [showCancellationDialog, setShowCancellationDialog] = useState(false);
+  
+  const {
+    reservations,
+    isLoading: reservationsLoading,
+    isError,
+    error,
+    refetch,
+    cancelReservation,
+    markAsNoShow
+  } = useReservations();
   
   // Update the current time every minute to check for auto-cancellations
   useEffect(() => {
@@ -130,17 +87,19 @@ const ReservationsPage = () => {
     }, 60000); // Every minute
     
     return () => clearInterval(timer);
-  }, []);
+  }, [reservations]);
   
-  // Function to check for reservations that should be auto-cancelled
+  // Check for unpaid reservations that should be auto-cancelled
   const checkForAutoCancellations = () => {
+    if (!reservations) return;
+    
     const now = new Date();
     const isPM7 = now.getHours() === 19 && now.getMinutes() === 0;
     
-    // For demo purposes, we're checking if the user just opened the alert
+    // For demo purposes, we're checking if there are any unpaid reservations
     if (!showAutoCancelInfo) {
-      const unpaidReservations = localReservations.filter(res => 
-        res.paymentStatus === 'unpaid' && res.status === 'confirmed'
+      const unpaidReservations = reservations.filter(res => 
+        res.payment_status === 'unpaid' && res.status === 'confirmed'
       );
       
       if (unpaidReservations.length > 0) {
@@ -151,39 +110,37 @@ const ReservationsPage = () => {
   
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would validate credentials via API
-    setIsLoggedIn(true);
-    
-    toast({
-      title: "Login Successful",
-      description: "You are now viewing your reservations.",
-      duration: 3000,
-    });
+    navigate('/login', { state: { from: '/reservations' } });
   };
   
   const handleFindReservation = (e: React.FormEvent) => {
     e.preventDefault();
     // In a real app, this would search for the reservation
-    setIsLoggedIn(true);
-    
     toast({
       title: "Reservation Found",
       description: `Found reservation with confirmation number: ${confirmationNumber}`,
       duration: 3000,
     });
+
+    refetch();
   };
 
   // Function to handle auto-cancellation of unpaid bookings
   const handleAutoCancellation = () => {
-    // In a real app, this would make API calls to cancel the unpaid reservations
-    const updatedReservations = localReservations.map(res => {
-      if (res.paymentStatus === 'unpaid' && res.status === 'confirmed') {
-        return { ...res, status: 'cancelled', cancellationReason: 'Auto-cancelled (unpaid at 7PM)' };
-      }
-      return res;
+    if (!reservations) return;
+    
+    // Cancel all unpaid reservations
+    const unpaidReservations = reservations.filter(res => 
+      res.payment_status === 'unpaid' && res.status === 'confirmed'
+    );
+    
+    unpaidReservations.forEach(reservation => {
+      cancelReservation({ 
+        id: reservation.id, 
+        reason: 'Auto-cancelled (unpaid at 7PM)' 
+      });
     });
     
-    setLocalReservations(updatedReservations);
     setShowAutoCancelInfo(false);
     
     toast({
@@ -197,41 +154,23 @@ const ReservationsPage = () => {
   const handleNoShowBilling = () => {
     if (!reservationToBill) return;
     
-    // In a real app, this would process payment through a payment gateway
-    const updatedReservations = localReservations.map(res => {
-      if (res.id === reservationToBill.id) {
-        return { ...res, paymentStatus: 'charged', status: 'no-show' };
-      }
-      return res;
-    });
-    
-    setLocalReservations(updatedReservations);
+    markAsNoShow(reservationToBill.id);
     setShowBillingDialog(false);
-    
-    toast({
-      title: "No-show billing complete",
-      description: `${reservationToBill.roomType} has been billed for no-show.`,
-      duration: 5000,
-    });
   };
   
   // Function to generate no-show report
   const generateNoShowReport = () => {
-    // In a real app, this would generate a proper report and possibly offer download
-    console.log("Generating no-show report...");
+    // In a real app, this would generate a proper report
     setShowReportDialog(true);
   };
 
   // Function to view reservation details
   const handleViewDetails = (reservation: Reservation) => {
-    // In a real app, this would take you to a detailed view page
     toast({
       title: "Viewing Reservation",
       description: `Details for ${reservation.id} - ${reservation.roomType}`,
       duration: 3000,
     });
-    // You could also navigate to a details page
-    // navigate(`/reservations/${reservation.id}`);
   };
 
   // Function to modify reservation
@@ -241,25 +180,26 @@ const ReservationsPage = () => {
       description: `You can now edit ${reservation.id} - ${reservation.roomType}`,
       duration: 3000,
     });
-    // navigate(`/reservations/edit/${reservation.id}`);
   };
 
   // Function to cancel reservation
   const handleCancelReservation = (reservation: Reservation) => {
-    const updatedReservations = localReservations.map(res => {
-      if (res.id === reservation.id) {
-        return { ...res, status: 'cancelled', cancellationReason: 'Customer requested cancellation' };
-      }
-      return res;
+    setReservationToCancel(reservation);
+    setShowCancellationDialog(true);
+  };
+  
+  // Function to confirm cancellation
+  const confirmCancellation = () => {
+    if (!reservationToCancel) return;
+    
+    cancelReservation({ 
+      id: reservationToCancel.id, 
+      reason: cancellationReason || 'Customer requested cancellation' 
     });
     
-    setLocalReservations(updatedReservations);
-    
-    toast({
-      title: "Reservation Cancelled",
-      description: `${reservation.id} - ${reservation.roomType} has been cancelled.`,
-      duration: 3000,
-    });
+    setShowCancellationDialog(false);
+    setCancellationReason('');
+    setReservationToCancel(null);
   };
 
   // Function to navigate to make a new reservation
@@ -272,13 +212,33 @@ const ReservationsPage = () => {
     navigate('/contact');
   };
 
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM dd, yyyy');
+    } catch (e) {
+      return dateString;
+    }
+  };
+  
+  // Format currency for display
+  const formatCurrency = (amount: number | undefined) => {
+    if (amount === undefined) return 'N/A';
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  };
+
   return (
     <Layout>
       <div className="bg-hotel-bg py-12">
         <div className="hotel-container">
           <h1 className="text-3xl md:text-4xl font-display font-bold text-center mb-8">Manage Your Reservations</h1>
           
-          {!isLoggedIn ? (
+          {authLoading ? (
+            <div className="max-w-2xl mx-auto">
+              <Skeleton className="h-12 w-full mb-6" />
+              <Skeleton className="h-64 w-full" />
+            </div>
+          ) : !user ? (
             <Tabs defaultValue="login" className="max-w-2xl mx-auto">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Account Login</TabsTrigger>
@@ -295,27 +255,8 @@ const ReservationsPage = () => {
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleLogin}>
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input 
-                            id="email" 
-                            type="email" 
-                            placeholder="you@example.com" 
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="password">Password</Label>
-                          <Input 
-                            id="password" 
-                            type="password"
-                            required
-                          />
-                        </div>
-                      </div>
                       <Button type="submit" className="w-full mt-6 bg-hotel hover:bg-hotel-light">
-                        Login
+                        Go to Login
                       </Button>
                     </form>
                   </CardContent>
@@ -417,15 +358,52 @@ const ReservationsPage = () => {
                 </div>
               )}
               
-              {localReservations.length > 0 ? (
+              {reservationsLoading ? (
                 <div className="space-y-6">
-                  {localReservations.map((reservation) => (
+                  {[1, 2].map((i) => (
+                    <Card key={i} className="animate-pulse">
+                      <CardHeader>
+                        <Skeleton className="h-6 w-1/3 mb-2" />
+                        <Skeleton className="h-4 w-1/4" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Skeleton className="h-4 w-3/4 mb-2" />
+                            <Skeleton className="h-4 w-3/4 mb-2" />
+                            <Skeleton className="h-4 w-3/4" />
+                          </div>
+                          <div>
+                            <Skeleton className="h-4 w-1/2 mb-2" />
+                            <Skeleton className="h-4 w-1/3" />
+                          </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Skeleton className="h-10 w-28 mr-2" />
+                        <Skeleton className="h-10 w-28 mr-2" />
+                        <Skeleton className="h-10 w-36" />
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : isError ? (
+                <Card className="text-center p-8">
+                  <h3 className="text-xl font-medium mb-2 text-red-600">Error Loading Reservations</h3>
+                  <p className="text-muted-foreground mb-6">
+                    {error instanceof Error ? error.message : "An unexpected error occurred"}
+                  </p>
+                  <Button onClick={() => refetch()}>Retry</Button>
+                </Card>
+              ) : reservations && reservations.length > 0 ? (
+                <div className="space-y-6">
+                  {reservations.map((reservation) => (
                     <Card key={reservation.id}>
                       <CardHeader>
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
                           <div>
                             <CardTitle>{reservation.roomType}</CardTitle>
-                            <CardDescription>Confirmation: {reservation.id}</CardDescription>
+                            <CardDescription>Confirmation: {reservation.id.substring(0, 8)}</CardDescription>
                           </div>
                           <div className="flex flex-col items-end gap-1">
                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -440,13 +418,13 @@ const ReservationsPage = () => {
                               {reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1)}
                             </span>
                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              reservation.paymentStatus === 'paid' 
+                              reservation.payment_status === 'paid' 
                                 ? 'bg-blue-100 text-blue-800' 
-                                : reservation.paymentStatus === 'charged'
+                                : reservation.payment_status === 'charged'
                                 ? 'bg-purple-100 text-purple-800'
                                 : 'bg-orange-100 text-orange-800'
                             }`}>
-                              Payment: {reservation.paymentStatus.charAt(0).toUpperCase() + reservation.paymentStatus.slice(1)}
+                              Payment: {reservation.payment_status.charAt(0).toUpperCase() + reservation.payment_status.slice(1)}
                             </span>
                           </div>
                         </div>
@@ -456,23 +434,25 @@ const ReservationsPage = () => {
                           <div>
                             <div className="flex items-center gap-2 mb-2">
                               <Calendar className="h-4 w-4 text-hotel" />
-                              <span className="text-sm">Check-in: {new Date(reservation.checkIn).toLocaleDateString()}</span>
+                              <span className="text-sm">Check-in: {formatDate(reservation.check_in_date)}</span>
                             </div>
                             <div className="flex items-center gap-2 mb-2">
                               <Calendar className="h-4 w-4 text-hotel" />
-                              <span className="text-sm">Check-out: {new Date(reservation.checkOut).toLocaleDateString()}</span>
+                              <span className="text-sm">Check-out: {formatDate(reservation.check_out_date)}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Clock className="h-4 w-4 text-hotel" />
-                              <span className="text-sm">Booked on: {new Date(reservation.bookedOn).toLocaleDateString()}</span>
+                              <span className="text-sm">Booked on: {formatDate(reservation.created_at)}</span>
                             </div>
                           </div>
                           <div>
-                            <RoomFeature title={`${reservation.guests} Guests`} />
-                            <p className="mt-2 font-medium">Total: {reservation.totalAmount}</p>
-                            {reservation.cancellationReason && (
+                            <RoomFeature title={`${reservation.number_of_guests} Guests`} />
+                            <p className="mt-2 font-medium">
+                              Total: {reservation.total_amount ? formatCurrency(reservation.total_amount) : 'N/A'}
+                            </p>
+                            {reservation.special_requests && (
                               <p className="mt-1 text-sm text-red-600">
-                                Reason: {reservation.cancellationReason}
+                                Note: {reservation.special_requests}
                               </p>
                             )}
                           </div>
@@ -492,7 +472,8 @@ const ReservationsPage = () => {
                             </Button>
                           </>
                         )}
-                        {reservation.status === 'confirmed' && new Date(reservation.checkIn) <= currentTime && (
+                        {reservation.status === 'confirmed' && 
+                         new Date(reservation.check_in_date) <= currentTime && (
                           <Button 
                             variant="outline" 
                             className="border-amber-500 text-amber-700 hover:bg-amber-50"
@@ -557,7 +538,7 @@ const ReservationsPage = () => {
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <p className="font-medium text-gray-500">Reservation</p>
-                  <p>{reservationToBill.id}</p>
+                  <p>{reservationToBill.id.substring(0, 8)}</p>
                 </div>
                 <div>
                   <p className="font-medium text-gray-500">Room</p>
@@ -565,13 +546,15 @@ const ReservationsPage = () => {
                 </div>
                 <div>
                   <p className="font-medium text-gray-500">Check-in</p>
-                  <p>{new Date(reservationToBill.checkIn).toLocaleDateString()}</p>
+                  <p>{formatDate(reservationToBill.check_in_date)}</p>
                 </div>
               </div>
               
               <div className="border-t border-gray-200 pt-4">
                 <p className="font-medium">Billing Amount</p>
-                <p className="text-lg">{reservationToBill.totalAmount}</p>
+                <p className="text-lg">
+                  {reservationToBill.total_amount ? formatCurrency(reservationToBill.total_amount) : 'N/A'}
+                </p>
                 <p className="text-sm text-gray-500">One night charge as per policy</p>
               </div>
             </div>
@@ -585,6 +568,40 @@ const ReservationsPage = () => {
               onClick={handleNoShowBilling}
             >
               Process Charge
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Cancellation Dialog */}
+      <Dialog open={showCancellationDialog} onOpenChange={setShowCancellationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Reservation</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for cancelling this reservation.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="cancellation-reason">Reason for Cancellation</Label>
+              <Input 
+                id="cancellation-reason" 
+                value={cancellationReason} 
+                onChange={(e) => setCancellationReason(e.target.value)}
+                placeholder="Change of plans, found better rate, etc."
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancellationDialog(false)}>Back</Button>
+            <Button 
+              variant="destructive"
+              onClick={confirmCancellation}
+            >
+              Confirm Cancellation
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -615,7 +632,7 @@ const ReservationsPage = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {mockNoShowReports.map((report) => (
                     <tr key={report.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(report.date).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(report.date)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{report.totalReservations}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{report.noShowCount}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{report.revenue}</td>

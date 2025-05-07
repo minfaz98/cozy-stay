@@ -171,8 +171,11 @@ export type Database = {
           created_at: string | null
           id: string
           number_of_guests: number
+          payment_status: Database["public"]["Enums"]["payment_status"] | null
           room_id: string | null
+          special_requests: string | null
           status: string | null
+          total_amount: number | null
           user_id: string | null
         }
         Insert: {
@@ -181,8 +184,11 @@ export type Database = {
           created_at?: string | null
           id?: string
           number_of_guests: number
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
           room_id?: string | null
+          special_requests?: string | null
           status?: string | null
+          total_amount?: number | null
           user_id?: string | null
         }
         Update: {
@@ -191,8 +197,11 @@ export type Database = {
           created_at?: string | null
           id?: string
           number_of_guests?: number
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
           room_id?: string | null
+          special_requests?: string | null
           status?: string | null
+          total_amount?: number | null
           user_id?: string | null
         }
         Relationships: [
@@ -347,6 +356,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_reservation_price: {
+        Args: { room_id: string; check_in_date: string; check_out_date: string }
+        Returns: number
+      }
       check_room_availability: {
         Args: { check_in: string; check_out: string }
         Returns: {
@@ -362,7 +375,13 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      payment_status: "paid" | "unpaid" | "refunded" | "charged"
+      reservation_status:
+        | "confirmed"
+        | "pending"
+        | "cancelled"
+        | "no-show"
+        | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -477,6 +496,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      payment_status: ["paid", "unpaid", "refunded", "charged"],
+      reservation_status: [
+        "confirmed",
+        "pending",
+        "cancelled",
+        "no-show",
+        "completed",
+      ],
+    },
   },
 } as const

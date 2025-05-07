@@ -25,43 +25,46 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import RoomManagement from "./pages/admin/RoomManagement";
 import FinancialReports from "./pages/admin/FinancialReports";
+import { AuthProvider } from "./context/AuthContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/rooms" element={<RoomsPage />} />
-          <Route path="/rooms/deluxe" element={<DeluxeRoom />} />
-          <Route path="/rooms/standard" element={<StandardRoom />} />
-          <Route path="/rooms/executive" element={<ExecutiveSuite />} />
-          <Route path="/rooms/twin" element={<TwinRoom />} />
-          <Route path="/rooms/luxury-suite" element={<LuxurySuite />} />
-          <Route path="/check-availability" element={<CheckAvailability />} />
-          <Route path="/reservations" element={<ReservationsPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/amenities" element={<Amenities />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/faqs" element={<FAQs />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/room-management" element={<RoomManagement />} />
-          <Route path="/admin/financial" element={<FinancialReports />} />
-          
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/rooms" element={<RoomsPage />} />
+            <Route path="/rooms/deluxe" element={<DeluxeRoom />} />
+            <Route path="/rooms/standard" element={<StandardRoom />} />
+            <Route path="/rooms/executive" element={<ExecutiveSuite />} />
+            <Route path="/rooms/twin" element={<TwinRoom />} />
+            <Route path="/rooms/luxury-suite" element={<LuxurySuite />} />
+            <Route path="/check-availability" element={<CheckAvailability />} />
+            <Route path="/reservations" element={<ReservationsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/amenities" element={<Amenities />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/faqs" element={<FAQs />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/room-management" element={<RoomManagement />} />
+            <Route path="/admin/financial" element={<FinancialReports />} />
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
