@@ -11,7 +11,7 @@ import {
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu';
 import { cn } from '@/lib/utils';
-import { Menu, X, User, Home, Calendar, Hotel, Bell } from 'lucide-react';
+import { Menu, X, User, Home, Calendar, Hotel, Bell, Bed, Info, Image, HelpCircle, Shield } from 'lucide-react';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -77,6 +77,25 @@ const Navbar = () => {
                 </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
+                <NavigationMenuTrigger className="navigation-link">About</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid gap-3 p-4 w-[400px] md:w-[500px] grid-cols-2">
+                    <ListItem href="/about" title="About Us" icon={<Info className="h-4 w-4 mr-2" />}>
+                      Learn about our hotel and our story.
+                    </ListItem>
+                    <ListItem href="/amenities" title="Amenities" icon={<Bed className="h-4 w-4 mr-2" />}>
+                      Discover our premium facilities and services.
+                    </ListItem>
+                    <ListItem href="/gallery" title="Gallery" icon={<Image className="h-4 w-4 mr-2" />}>
+                      View our photo gallery.
+                    </ListItem>
+                    <ListItem href="/faqs" title="FAQs" icon={<HelpCircle className="h-4 w-4 mr-2" />}>
+                      Frequently asked questions.
+                    </ListItem>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
                 <Link to="/reservations" className="navigation-link">Reservations</Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
@@ -92,6 +111,11 @@ const Navbar = () => {
             </Button>
             <Button className="bg-hotel hover:bg-hotel-light" size="sm" asChild>
               <Link to="/register">Register</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild className="text-gray-500">
+              <Link to="/admin/login">
+                <Shield className="h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>
@@ -130,6 +154,42 @@ const Navbar = () => {
             </li>
             <li>
               <Link 
+                to="/about" 
+                className="navigation-link block py-2 border-b border-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                About Us
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/amenities" 
+                className="navigation-link block py-2 border-b border-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                Amenities
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/gallery" 
+                className="navigation-link block py-2 border-b border-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                Gallery
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/faqs" 
+                className="navigation-link block py-2 border-b border-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                FAQs
+              </Link>
+            </li>
+            <li>
+              <Link 
                 to="/check-availability" 
                 className="navigation-link block py-2 border-b border-gray-100"
                 onClick={() => setIsOpen(false)}
@@ -163,6 +223,11 @@ const Navbar = () => {
                 <Link to="/register">Register</Link>
               </Button>
             </li>
+            <li className="pt-2">
+              <Button variant="ghost" size="sm" className="w-full text-gray-500" asChild>
+                <Link to="/admin/login">Admin Login</Link>
+              </Button>
+            </li>
           </ul>
         </div>
       )}
@@ -172,8 +237,10 @@ const Navbar = () => {
 
 const ListItem = React.forwardRef<
   React.ElementRef<"a">,
-  React.ComponentPropsWithoutRef<"a">
->(({ className, title, children, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<"a"> & {
+    icon?: React.ReactNode;
+  }
+>(({ className, title, children, icon, ...props }, ref) => {
   return (
     <li>
       <NavigationMenuLink asChild>
@@ -185,7 +252,7 @@ const ListItem = React.forwardRef<
           )}
           {...props}
         >
-          <div className="text-sm font-medium leading-none">{title}</div>
+          <div className="text-sm font-medium leading-none flex items-center">{icon}{title}</div>
           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
             {children}
           </p>
