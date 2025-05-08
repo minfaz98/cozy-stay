@@ -17,6 +17,18 @@ export interface Reservation {
   special_requests?: string;
 }
 
+// Add this new interface for creating reservations
+export interface CreateReservationDTO {
+  room_id: string;
+  check_in_date: string;
+  check_out_date: string;
+  number_of_guests: number;
+  status?: ReservationStatus;
+  payment_status?: PaymentStatus;
+  total_amount?: number;
+  special_requests?: string;
+}
+
 export interface NoShowReport {
   id: string;
   date: string;

@@ -1,7 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { reservationService } from "@/services/reservation.service";
-import { Reservation } from "@/types/reservation";
+import { CreateReservationDTO, Reservation } from "@/types/reservation";
 import { useToast } from "./use-toast";
 
 export function useReservations() {
@@ -22,7 +22,7 @@ export function useReservations() {
 
   // Create reservation mutation
   const createReservationMutation = useMutation({
-    mutationFn: (newReservation: Partial<Reservation>) => 
+    mutationFn: (newReservation: CreateReservationDTO) => 
       reservationService.createReservation(newReservation),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] });

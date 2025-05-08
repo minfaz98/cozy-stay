@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Reservation, Room } from "@/types/reservation";
+import { CreateReservationDTO, Reservation, Room } from "@/types/reservation";
 
 export const reservationService = {
   // Get all reservations for the current user
@@ -40,11 +40,16 @@ export const reservationService = {
   },
 
   // Create a new reservation
-  async createReservation(reservationData: Partial<Reservation>): Promise<Reservation> {
+  async createReservation(reservationData: CreateReservationDTO): Promise<Reservation> {
     const { data: user } = await supabase.auth.getUser();
     
     if (!user.user) {
       throw new Error('User must be logged in to make a reservation');
+    }
+
+    // Ensure required fields are present
+    if (!reservationData.check_in_date || !reservationData.check_out_date || !reservationData.number_of_guests) {
+      throw new Error('Missing required reservation fields');
     }
 
     const { data, error } = await supabase
@@ -52,6 +57,8 @@ export const reservationService = {
       .insert({
         ...reservationData,
         user_id: user.user.id,
+        status: reservationData.status || 'confirmed',
+        payment_status: reservationData.payment_status || 'unpaid'
       })
       .select()
       .single();
