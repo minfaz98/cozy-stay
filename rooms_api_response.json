@@ -1,0 +1,25 @@
+﻿
+
+StatusCode        : 200
+StatusDescription : OK
+Content           : {"status":"success","data":[{"id":"1","number":"101","type":"SINGLE","price":119,"status":"
+                    AVAILABLE","image":"https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg","desc
+                    ription":"Cozy sin...
+RawContent        : HTTP/1.1 200 OK
+                    Access-Control-Allow-Origin: *
+                    Connection: keep-alive
+                    Keep-Alive: timeout=5
+                    Content-Length: 12900
+                    Content-Type: application/json; charset=utf-8
+                    Date: Thu, 05 Jun 2025 16:04:06 GM...
+Forms             : {}
+Headers           : {[Access-Control-Allow-Origin, *], [Connection, keep-alive], [Keep-Alive, timeout=5], 
+                    [Content-Length, 12900]...}
+Images            : {}
+InputFields       : {}
+Links             : {}
+ParsedHtml        : mshtml.HTMLDocumentClass
+RawContentLength  : 12900
+
+
+

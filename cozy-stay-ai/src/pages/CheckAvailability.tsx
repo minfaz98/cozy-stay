@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { CalendarIcon, Users, BedDouble, CheckCircle, Building2 } from 'lucide-r
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -33,17 +33,10 @@ interface Room {
 }
 
 const CheckAvailability = () => {
-  const location = useLocation();
-  const searchParams = location.state;
-
-  const [checkInDate, setCheckInDate] = useState<Date | undefined>(
-    searchParams?.checkIn ? new Date(searchParams.checkIn) : undefined
-  );
-  const [checkOutDate, setCheckOutDate] = useState<Date | undefined>(
-    searchParams?.checkOut ? new Date(searchParams.checkOut) : undefined
-  );
-  const [guests, setGuests] = useState(searchParams?.guests?.toString() || '2');
-  const [roomType, setRoomType] = useState(searchParams?.roomType || 'any');
+  const [checkInDate, setCheckInDate] = useState<Date | undefined>(undefined);
+  const [checkOutDate, setCheckOutDate] = useState<Date | undefined>(undefined);
+  const [guests, setGuests] = useState('2');
+  const [roomType, setRoomType] = useState('any');
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -52,25 +45,11 @@ const CheckAvailability = () => {
   const [bulkBookingData, setBulkBookingData] = useState({
     roomType: 'SINGLE' as 'SINGLE' | 'DOUBLE' | 'FAMILY' | 'DELUXE' | 'SUITE',
     numberOfRooms: 2,
-    specialRequests: '',
-    creditCard: {
-      cardNumber: '',
-      expiryMonth: '',
-      expiryYear: '',
-      cvv: '',
-      holderName: ''
-    }
+    specialRequests: ''
   });
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  // Automatically search when navigated with search params
-  useEffect(() => {
-    if (searchParams?.checkIn && searchParams?.checkOut) {
-      handleSubmit(new Event('submit') as React.FormEvent);
-    }
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,11 +106,11 @@ const CheckAvailability = () => {
   };
 
   // Calculate discount rate based on number of rooms
-  const getDiscountRate = (numberOfRooms: number): number => {
-    if (numberOfRooms >= 10) return 0.30;  // 30% discount
-    if (numberOfRooms >= 5) return 0.20;   // 20% discount
-    if (numberOfRooms >= 3) return 0.15;   // 15% discount
-    return 0.10;                           // 10% discount
+  const getDiscountRate = (rooms: number) => {
+    if (rooms >= 10) return 0.30; // 30% discount for 10+ rooms
+    if (rooms >= 5) return 0.20;  // 20% discount for 5-9 rooms
+    if (rooms >= 3) return 0.15;  // 15% discount for 3-4 rooms
+    return 0.10;                  // 10% discount for 2 rooms
   };
 
   const handleBulkBooking = async () => {
@@ -153,77 +132,19 @@ const CheckAvailability = () => {
       return;
     }
 
-    // Validate credit card details
-    const { cardNumber, expiryMonth, expiryYear, cvv, holderName } = bulkBookingData.creditCard;
-    
-    if (!cardNumber || cardNumber.length !== 16) {
-      toast({
-        title: "Invalid Card Number",
-        description: "Please enter a valid 16-digit card number.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const month = parseInt(expiryMonth);
-    const year = parseInt(expiryYear);
-    const currentYear = new Date().getFullYear();
-
-    if (!month || month < 1 || month > 12) {
-      toast({
-        title: "Invalid Expiry Month",
-        description: "Please enter a valid month (1-12).",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!year || year < currentYear) {
-      toast({
-        title: "Card Expired",
-        description: "Please enter a valid expiry year.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!cvv || !/^\d{3,4}$/.test(cvv)) {
-      toast({
-        title: "Invalid CVV",
-        description: "Please enter a valid 3 or 4 digit CVV.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!holderName.trim()) {
-      toast({
-        title: "Invalid Card Holder Name",
-        description: "Please enter the card holder's name.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
     try {
-      // Check room availability for the selected dates
-      const response = await roomsAPI.listRooms({
-        type: bulkBookingData.roomType,
-        checkIn: checkInDate.toISOString(),
-        checkOut: checkOutDate.toISOString()
-      });
-
-      const availableRooms = response.data.data.filter(room => 
-        !room.reservations.some(res => 
-          (new Date(res.checkIn) <= checkOutDate && new Date(res.checkOut) >= checkInDate)
-        )
+      // First check available rooms
+      const response = await roomsAPI.listRooms();
+      let availableRooms = response.data.data.filter(room => 
+        room.type.toUpperCase() === bulkBookingData.roomType &&
+        room.status === 'AVAILABLE'
       );
 
       if (availableRooms.length < bulkBookingData.numberOfRooms) {
         toast({
           title: "Not enough rooms",
-          description: `Only ${availableRooms.length} ${bulkBookingData.roomType.toLowerCase()} rooms are available for the selected dates.`,
+          description: `Only ${availableRooms.length} ${bulkBookingData.roomType.toLowerCase()} rooms are available.`,
           variant: "destructive",
         });
         setLoading(false);
@@ -237,24 +158,17 @@ const CheckAvailability = () => {
         checkIn: checkInDate.toISOString(),
         checkOut: checkOutDate.toISOString(),
         discountRate: getDiscountRate(bulkBookingData.numberOfRooms),
-        specialRequests: bulkBookingData.specialRequests,
-        creditCard: {
-          cardNumber: cardNumber,
-          expiryMonth: month,
-          expiryYear: year,
-          cvv: cvv,
-          holderName: holderName.trim()
-        }
+        specialRequests: bulkBookingData.specialRequests
       });
 
       toast({
         title: "Success!",
-        description: `Successfully booked ${bulkBookingData.numberOfRooms} ${bulkBookingData.roomType.toLowerCase()} rooms with a ${getDiscountRate(bulkBookingData.numberOfRooms) * 100}% discount!`,
+        description: `Successfully booked ${bulkBookingData.numberOfRooms} ${bulkBookingData.roomType.toLowerCase()} rooms.`,
       });
       
       setIsBulkBookingOpen(false);
       navigate('/reservations');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to create bulk booking. Please try again.",
@@ -334,67 +248,6 @@ const CheckAvailability = () => {
                         </SelectContent>
                       </Select>
                     </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Check-in Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !checkInDate && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {checkInDate ? format(checkInDate, "PPP") : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={checkInDate}
-                              onSelect={setCheckInDate}
-                              initialFocus
-                              disabled={(date) =>
-                                date < new Date() || (checkOutDate ? date >= checkOutDate : false)
-                              }
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Check-out Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !checkOutDate && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {checkOutDate ? format(checkOutDate, "PPP") : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={checkOutDate}
-                              onSelect={setCheckOutDate}
-                              initialFocus
-                              disabled={(date) =>
-                                date <= (checkInDate || new Date())
-                              }
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-
                     <div className="space-y-2">
                       <Label>Number of Rooms (Minimum 2)</Label>
                       <Input
@@ -407,7 +260,6 @@ const CheckAvailability = () => {
                         }))}
                       />
                     </div>
-
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-800 mb-2">Bulk Booking Discount</h4>
                       <div className="space-y-2">
@@ -428,95 +280,6 @@ const CheckAvailability = () => {
                         </p>
                       </div>
                     </div>
-
-                    <Separator className="my-4" />
-
-                    <div className="space-y-4">
-                      <h4 className="font-semibold">Credit Card Details</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Card Number</Label>
-                          <Input
-                            placeholder="1234 5678 9012 3456"
-                            value={bulkBookingData.creditCard.cardNumber}
-                            onChange={(e) => setBulkBookingData(prev => ({
-                              ...prev,
-                              creditCard: {
-                                ...prev.creditCard,
-                                cardNumber: e.target.value.replace(/\D/g, '').slice(0, 16)
-                              }
-                            }))}
-                            required
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <Label>Expiry Month</Label>
-                            <Input
-                              placeholder="MM"
-                              value={bulkBookingData.creditCard.expiryMonth}
-                              onChange={(e) => setBulkBookingData(prev => ({
-                                ...prev,
-                                creditCard: {
-                                  ...prev.creditCard,
-                                  expiryMonth: e.target.value.replace(/\D/g, '').slice(0, 2)
-                                }
-                              }))}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label>Expiry Year</Label>
-                            <Input
-                              placeholder="YYYY"
-                              value={bulkBookingData.creditCard.expiryYear}
-                              onChange={(e) => setBulkBookingData(prev => ({
-                                ...prev,
-                                creditCard: {
-                                  ...prev.creditCard,
-                                  expiryYear: e.target.value.replace(/\D/g, '').slice(0, 4)
-                                }
-                              }))}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label>CVV</Label>
-                            <Input
-                              type="password"
-                              placeholder="123"
-                              value={bulkBookingData.creditCard.cvv}
-                              onChange={(e) => setBulkBookingData(prev => ({
-                                ...prev,
-                                creditCard: {
-                                  ...prev.creditCard,
-                                  cvv: e.target.value.replace(/\D/g, '').slice(0, 4)
-                                }
-                              }))}
-                              required
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <Label>Card Holder Name</Label>
-                          <Input
-                            placeholder="John Doe"
-                            value={bulkBookingData.creditCard.holderName}
-                            onChange={(e) => setBulkBookingData(prev => ({
-                              ...prev,
-                              creditCard: {
-                                ...prev.creditCard,
-                                holderName: e.target.value
-                              }
-                            }))}
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-
                     <div className="space-y-2">
                       <Label>Special Requests</Label>
                       <Textarea

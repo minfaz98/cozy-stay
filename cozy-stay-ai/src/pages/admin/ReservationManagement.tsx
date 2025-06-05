@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Search, Filter, CreditCard, Receipt } from 'lucide-react';
+import { Calendar as CalendarIcon, Search, Filter, CreditCard, Receipt, PlusCircle, Edit2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { reservationsAPI, billingAPI, roomsAPI } from "@/services/api";
 import {
@@ -41,6 +41,7 @@ import {
 import { DateRange } from "react-day-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { authAPI } from '@/services/api';
 
 interface Reservation {
   id: string;
@@ -134,6 +135,19 @@ const ReservationManagement = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [isWalkInDialogOpen, setIsWalkInDialogOpen] = useState(false);
+  const [walkInForm, setWalkInForm] = useState({
+    name: '',
+    email: '',
+    roomId: '',
+    checkIn: '',
+    checkOut: '',
+    guests: 1,
+  });
+  const [walkInLoading, setWalkInLoading] = useState(false);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [isEditCheckoutOpen, setIsEditCheckoutOpen] = useState(false);
+  const [newCheckoutDate, setNewCheckoutDate] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if user is authenticated as admin
@@ -148,6 +162,11 @@ const ReservationManagement = () => {
     
     setIsAuthorized(true);
     fetchReservations();
+  }, [navigate]);
+
+  useEffect(() => {
+    // Fetch all rooms for walk-in dialog
+    roomsAPI.listRooms().then(res => setRooms(res.data.data || []));
   }, [navigate]);
 
   const fetchReservations = async () => {
@@ -326,6 +345,66 @@ const ReservationManagement = () => {
     }
   };
 
+  const handleWalkInChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setWalkInForm({ ...walkInForm, [e.target.name]: e.target.value });
+  };
+
+  const handleWalkInSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWalkInLoading(true);
+    try {
+      // 1. Register user if not exists
+      let userId = null;
+      try {
+        const userRes = await authAPI.register({
+          email: walkInForm.email,
+          password: 'Temp1234!',
+          name: walkInForm.name,
+          role: 'CUSTOMER',
+        });
+        userId = userRes.data.data.user.id;
+      } catch (err: any) {
+        if (err.response?.data?.message === 'Email already registered') {
+          // Fetch user id (not ideal, but for demo)
+          // In real app, backend should provide a lookup
+          userId = null; // Let backend assign by email
+        } else {
+          throw err;
+        }
+      }
+      // 2. Create reservation with status CHECKED_IN
+      await reservationsAPI.createReservation({
+        roomId: walkInForm.roomId,
+        checkIn: walkInForm.checkIn,
+        checkOut: walkInForm.checkOut,
+        guests: walkInForm.guests,
+        status: 'CHECKED_IN',
+        userId: userId,
+      });
+      toast({ title: 'Walk-in checked in', description: 'Walk-in guest checked in successfully.' });
+      setIsWalkInDialogOpen(false);
+      setWalkInForm({ name: '', email: '', roomId: '', checkIn: '', checkOut: '', guests: 1 });
+      fetchReservations();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to check in walk-in guest.' });
+    } finally {
+      setWalkInLoading(false);
+    }
+  };
+
+  const handleEditCheckout = async () => {
+    if (!selectedReservationDetails || !newCheckoutDate) return;
+    try {
+      await reservationsAPI.updateReservation(selectedReservationDetails.id, { checkOut: newCheckoutDate });
+      toast({ title: 'Checkout date updated', description: 'The checkout date has been updated.' });
+      setIsEditCheckoutOpen(false);
+      setNewCheckoutDate(null);
+      fetchReservations();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to update checkout date.' });
+    }
+  };
+
   if (!isAuthorized) {
     return null;
   }
@@ -346,6 +425,9 @@ const ReservationManagement = () => {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Reservation Management</h1>
             <p className="text-gray-500">Manage hotel reservations and guest information</p>
           </div>
+          <Button onClick={() => setIsWalkInDialogOpen(true)} className="flex items-center gap-2 bg-hotel hover:bg-hotel-dark">
+            <PlusCircle className="h-5 w-5" /> Walk-in Check-in
+          </Button>
         </div>
 
         <div className="mb-4 flex flex-col md:flex-row gap-4">
@@ -781,8 +863,71 @@ const ReservationManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Walk-in Check-in Dialog */}
+      <Dialog open={isWalkInDialogOpen} onOpenChange={setIsWalkInDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Walk-in Check-in</DialogTitle>
+            <DialogDescription>Enter guest and room details for walk-in check-in.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleWalkInSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input name="name" value={walkInForm.name} onChange={handleWalkInChange} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input name="email" type="email" value={walkInForm.email} onChange={handleWalkInChange} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Room</Label>
+              <select name="roomId" value={walkInForm.roomId} onChange={handleWalkInChange} required className="w-full border rounded px-2 py-1">
+                <option value="">Select Room</option>
+                {rooms.filter(r => r.is_available).map(room => (
+                  <option key={room.id} value={room.id}>{room.number} ({room.type})</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Check-in Date</Label>
+              <Input name="checkIn" type="date" value={walkInForm.checkIn} onChange={handleWalkInChange} required min={new Date().toISOString().split('T')[0]} />
+            </div>
+            <div className="space-y-2">
+              <Label>Check-out Date</Label>
+              <Input name="checkOut" type="date" value={walkInForm.checkOut} onChange={handleWalkInChange} required min={walkInForm.checkIn || new Date().toISOString().split('T')[0]} />
+            </div>
+            <div className="space-y-2">
+              <Label>Number of Guests</Label>
+              <Input name="guests" type="number" min={1} value={walkInForm.guests} onChange={handleWalkInChange} required />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsWalkInDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-hotel hover:bg-hotel-dark" disabled={walkInLoading}>{walkInLoading ? 'Checking in...' : 'Check In'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Checkout Date Dialog */}
+      <Dialog open={isEditCheckoutOpen} onOpenChange={setIsEditCheckoutOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Checkout Date</DialogTitle>
+            <DialogDescription>Update the checkout date for this reservation.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Label>New Checkout Date</Label>
+            <Input type="date" value={newCheckoutDate || ''} onChange={e => setNewCheckoutDate(e.target.value)} min={selectedReservationDetails?.checkIn?.split('T')[0]} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditCheckoutOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditCheckout} className="bg-hotel hover:bg-hotel-dark">Update</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };
 
-export default ReservationManagement; 
+export default ReservationManagement;

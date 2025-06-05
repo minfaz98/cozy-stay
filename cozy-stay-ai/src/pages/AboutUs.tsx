@@ -6,6 +6,7 @@ import { Hotel, Users, Clock, MapPin } from 'lucide-react';
 import minfazImg from '@/assets/minfaz.jpg';
 import pic1Img from '@/assets/pic1.png';
 import pic2Img from '@/assets/pic2.png';
+import pic3Img from '@/assets/pic3.jpg';
 
 const AboutUs = () => {
   return (
@@ -170,7 +171,7 @@ const AboutUs = () => {
                   name: "yumeth",
                   title: "Guest Relations Manager",
                   bio: "yumeth specializes in creating personalized experiences that keep guests coming back.",
-                  // image: pic1Img
+                   image: pic3Img
                 }
               ].map((person, index) => (
                 <div key={index} className="text-center">
