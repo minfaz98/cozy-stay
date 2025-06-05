@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: hotel
+      POSTGRES_PASSWORD: hotelpass
+      POSTGRES_DB: hotel
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgres://hotel:hotelpass@db:5432/hotel
+      JWT_SECRET: supersecret
+      NODE_ENV: production
+    depends_on:
+      - db
+    ports:
+      - "4000:4000"
+volumes:
+  db-data:
