@@ -27,7 +27,7 @@ const Navbar = () => {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
           <Hotel className="h-8 w-8 text-hotel-accent" />
-          <span className="text-2xl font-display font-bold text-hotel">CozyStay</span>
+          <span className="text-2xl font-display font-bold text-hotel">Urban Hotels</span>
         </Link>
 
         {/* Desktop Navigation */}

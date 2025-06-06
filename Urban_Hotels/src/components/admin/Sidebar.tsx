@@ -53,7 +53,7 @@ export function Sidebar() {
       <div className="p-4">
         <Link to="/admin/dashboard" className="flex items-center gap-2">
           <Hotel className="h-8 w-8 text-hotel-accent" />
-          <span className="text-xl font-bold">CozyStay</span>
+          <span className="text-xl font-bold">Urban Hotels</span>
         </Link>
       </div>
 

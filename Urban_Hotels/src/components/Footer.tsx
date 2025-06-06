@@ -12,15 +12,15 @@ const Footer = () => {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Hotel className="h-8 w-8 text-hotel-accent" />
-              <span className="text-2xl font-display font-bold">CozyStay</span>
+              <span className="text-2xl font-display font-bold">Urban Hotels</span>
             </div>
             <p className="text-gray-300 mb-4">
-              Experience luxury and comfort at CozyStay, your home away from home.
+              Experience luxury and comfort at our Urban Hotels, your home away from home.
             </p>
             <div className="flex flex-col space-y-2">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-hotel-accent" />
-                <span className="text-gray-300">123 Hotel Street, kandy, Sri Lanka</span>
+                <span className="text-gray-300">10 Colombo Street, Urban Hotels, Sri Lanka</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-hotel-accent" />
@@ -28,7 +28,7 @@ const Footer = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-hotel-accent" />
-                <span className="text-gray-300">info@cozystay.com</span>
+                <span className="text-gray-300">info@urbanhotels.com</span>
               </div>
             </div>
           </div>
@@ -82,7 +82,7 @@ const Footer = () => {
 
         {/* Copyright */}
         <div className="border-t border-gray-700 pt-6 mt-8 text-center text-gray-400 text-sm">
-          <p>&copy; {new Date().getFullYear()} CozyStay Hotels. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Urban Hotels. All rights reserved.</p>
         </div>
       </div>
     </footer>

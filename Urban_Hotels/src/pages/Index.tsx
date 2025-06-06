@@ -208,7 +208,7 @@ const AmenitiesSection: React.FC = () => {
 const TestimonialsSection: React.FC = () => {
   const testimonials = [
     {
-      text: "Our stay at CozyStay was exceptional. The staff was attentive and the room exceeded our expectations.",
+      text: "Our stay at Urban Red was exceptional. The staff was attentive and the room exceeded our expectations.",
       author: "Sarah Johnson",
       title: "Business Traveler"
     },
@@ -282,7 +282,7 @@ const Index = () => {
         <div className="hotel-container relative z-10 text-white">
           <div className="max-w-2xl">
             <h1 className="text-5xl font-display font-bold mb-4">Experience Luxury & Comfort</h1>
-            <p className="text-xl mb-8">Discover the perfect balance of hospitality, luxury, and comfort at CozyStay.</p>
+            <p className="text-xl mb-8">Discover the perfect balance of hospitality, luxury, and comfort at Urban Red.</p>
             <Button size="lg" className="bg-hotel-accent hover:brightness-110 text-white">
               Explore Rooms
             </Button>
