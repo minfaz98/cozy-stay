@@ -18,12 +18,14 @@ app.use(express.json());
 app.post('/auth/register', AuthCtrl.register);
 app.post('/auth/login', AuthCtrl.login);
 app.get('/auth/me', authenticate(), AuthCtrl.getCurrentUser);
+app.get('/users/by-email', authenticate(['MANAGER', 'ADMIN']), AuthCtrl.getUserByEmail);
 
 // Rooms
 app.get('/rooms', RoomCtrl.listRooms);
 app.post('/rooms', authenticate(['MANAGER']), RoomCtrl.createRoom);
 app.put('/rooms/:id', authenticate(['MANAGER']), RoomCtrl.updateRoom);
 app.delete('/rooms/:id', authenticate(['MANAGER']), RoomCtrl.deleteRoom);
+app.post('/rooms/:id/calculate-price', RoomCtrl.calculatePrice);
 
 // Reservations
 app.use('/reservations', reservationsRouter);

@@ -42,6 +42,9 @@ import { DateRange } from "react-day-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authAPI } from '@/services/api';
+import dayjs from 'dayjs';
+
+
 
 interface Reservation {
   id: string;
@@ -355,51 +358,123 @@ const ReservationManagement = () => {
   };
 
   const handleWalkInChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setWalkInForm({ ...walkInForm, [e.target.name]: e.target.value });
-  };
+    const { name, value } = e.target; // Destructure name and value from the event target
 
-  const handleWalkInSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setWalkInLoading(true);
-    try {
-      // 1. Register user if not exists
-      let userId = null;
-      try {
-        const userRes = await authAPI.register({
-          email: walkInForm.email,
-          password: 'Temp1234!',
-          name: walkInForm.name,
-          role: 'CUSTOMER',
-        });
-        userId = userRes.data.data.user.id;
-      } catch (err: any) {
-        if (err.response?.data?.message === 'Email already registered') {
-          // Fetch user id (not ideal, but for demo)
-          // In real app, backend should provide a lookup
-          userId = null; // Let backend assign by email
+    if (name === 'checkIn' || name === 'checkOut') {
+        // This is a date input (type="date")
+        // The value from e.target.value will be a "YYYY-MM-DD" string.
+        // We need to convert it to a full ISO 8601 datetime string ("YYYY-MM-DDTHH:mm:ss.sssZ")
+        // For simplicity, we'll set the time to midnight UTC.
+        if (value) { // Ensure value is not empty (if user clears the date)
+            const isoDateTimeString = `${value}T00:00:00.000Z`; // Creates "YYYY-MM-DDTHH:mm:ss.sssZ"
+            setWalkInForm(prevForm => ({
+                ...prevForm,
+                [name]: isoDateTimeString, // Store the formatted string in state
+            }));
         } else {
-          throw err;
+            // If the date input is cleared, set the state value to an empty string
+            setWalkInForm(prevForm => ({
+                ...prevForm,
+                [name]: '',
+            }));
         }
-      }
-      // 2. Create reservation with status CHECKED_IN
-      await reservationsAPI.createReservation({
-        roomId: walkInForm.roomId,
-        checkIn: walkInForm.checkIn,
-        checkOut: walkInForm.checkOut,
-        guests: walkInForm.guests,
-        status: 'CHECKED_IN',
-        userId: userId,
-      });
-      toast({ title: 'Walk-in checked in', description: 'Walk-in guest checked in successfully.' });
-      setIsWalkInDialogOpen(false);
-      setWalkInForm({ name: '', email: '', roomId: '', checkIn: '', checkOut: '', guests: 1 });
-      fetchReservations();
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to check in walk-in guest.' });
-    } finally {
-      setWalkInLoading(false);
+    } else {
+        // For all other inputs (text, number, select, etc.),
+        // just set the value directly as before.
+        setWalkInForm(prevForm => ({ ...prevForm, [name]: value }));
     }
-  };
+};
+
+// Add this new function (or use an existing one if you have it)
+const fetchUserIdByEmail = async (email: string) => {
+  try {
+    // You'll need a new API endpoint for this on your backend (e.g., GET /api/users?email=...)
+    // Or, if your login endpoint returns user data, you can use that.
+    // For now, let's assume you'd make a request to a theoretical endpoint.
+    const response = await authAPI.getUserByEmail(email); // <--- YOU'LL NEED TO CREATE/FIND THIS API CALL
+    return response.data.data.id; // Assuming the user ID is directly accessible
+  } catch (err) {
+    console.error('Error fetching user ID by email:', err);
+    throw new Error('Could not find existing user.');
+  }
+};
+
+const handleWalkInSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setWalkInLoading(true);
+  try {
+    let userId: string | null = null;
+
+    // 1. Register/Lookup User
+    try {
+      const userRes = await authAPI.register({
+        email: walkInForm.email,
+        password: 'Temp1234!',
+        name: walkInForm.name,
+        role: 'CUSTOMER',
+      });
+      userId = userRes.data.data.user.id;
+    } catch (err: any) {
+      if (err.response?.data?.message === 'Email already registered') {
+        userId = await fetchUserIdByEmail(walkInForm.email);
+      } else {
+        // Re-throw other unexpected errors
+        throw err;
+      }
+    }
+
+    if (!userId) {
+      throw new Error('Failed to obtain a user ID for the reservation.');
+    }
+
+    // --- Calculate Total Amount ---
+    const checkInDate = walkInForm.checkIn ? dayjs(walkInForm.checkIn).toISOString() : '';
+    const checkOutDate = walkInForm.checkOut ? dayjs(walkInForm.checkOut).toISOString() : '';
+
+    // Frontend validation for missing data before API call
+    if (!walkInForm.roomId || !checkInDate || !checkOutDate) {
+        // Use a generic Error or throw nothing and let toast handle it
+        throw new Error("Missing room ID, check-in, or check-out for price calculation.");
+    }
+
+    const priceResponse = await roomsAPI.calculatePrice(walkInForm.roomId, {
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+    });
+    // Adjust based on your API response structure. Assuming `data.data.totalPrice` as per previous context.
+    const totalAmount = priceResponse.data.data.totalPrice;
+
+    if (typeof totalAmount !== 'number' || totalAmount < 0) {
+        throw new Error("Failed to calculate a valid total amount."); // Use generic Error
+    }
+    // -----------------------------------
+
+    // 2. Create reservation with status CHECKED_IN
+    await reservationsAPI.createReservation({
+      roomId: walkInForm.roomId,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      guests: walkInForm.guests,
+      status: 'CHECKED_IN',
+      userId: userId,
+      totalAmount: totalAmount,
+    });
+    toast({ title: 'Walk-in checked in', description: 'Walk-in guest checked in successfully.' });
+    setIsWalkInDialogOpen(false);
+    setWalkInForm({ name: '', email: '', roomId: '', checkIn: '', checkOut: '', guests: 1 });
+    fetchReservations();
+  } catch (err: any) {
+    console.error('Walk-in submission error:', err);
+    // Frontend error handling should check err.response for API errors
+    toast({
+      variant: 'destructive',
+      title: 'Error',
+      description: err.response?.data?.message || err.message || 'Failed to check in walk-in guest.'
+    });
+  } finally {
+    setWalkInLoading(false);
+  }
+};
 
   const handleEditCheckout = async () => {
     if (!selectedReservationDetails || !newCheckoutDate) return;
@@ -899,12 +974,28 @@ const ReservationManagement = () => {
               </select>
             </div>
             <div className="space-y-2">
-              <Label>Check-in Date</Label>
-              <Input name="checkIn" type="date" value={walkInForm.checkIn} onChange={handleWalkInChange} required min={new Date().toISOString().split('T')[0]} />
+                <Label>Check-in Date</Label>
+                <Input
+                    name="checkIn"
+                    type="date"
+                    // --- CHANGE THIS LINE ---
+                    value={walkInForm.checkIn ? walkInForm.checkIn.split('T')[0] : ''} // Get only YYYY-MM-DD part
+                    onChange={handleWalkInChange}
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                />
             </div>
             <div className="space-y-2">
-              <Label>Check-out Date</Label>
-              <Input name="checkOut" type="date" value={walkInForm.checkOut} onChange={handleWalkInChange} required min={walkInForm.checkIn || new Date().toISOString().split('T')[0]} />
+                <Label>Check-out Date</Label>
+                <Input
+                    name="checkOut"
+                    type="date"
+                    // --- CHANGE THIS LINE ---
+                    value={walkInForm.checkOut ? walkInForm.checkOut.split('T')[0] : ''} // Get only YYYY-MM-DD part
+                    onChange={handleWalkInChange}
+                    required
+                    min={walkInForm.checkIn ? walkInForm.checkIn.split('T')[0] : new Date().toISOString().split('T')[0]} // Ensure min is also YYYY-MM-DD
+                />
             </div>
             <div className="space-y-2">
               <Label>Number of Guests</Label>

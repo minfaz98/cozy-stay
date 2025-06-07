@@ -171,3 +171,37 @@ export const getCurrentUser = async (req, res, next) => {
     next(error);
   }
 }; 
+
+// --- ADD THIS NEW CONTROLLER FUNCTION ---
+export const getUserByEmail = async (req, res, next) => {
+  try {
+    const { email } = req.query; // Get email from query parameter (e.g., /users/by-email?email=test@example.com)
+
+    if (!email) {
+      return next(new AppError(400, "Email query parameter is required."));
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, name: true, role: true }, // Select necessary fields, including id
+    });
+
+    if (!user) {
+      // If user is not found, return a 404 error
+      return next(new AppError(404, "User not found with the provided email."));
+    }
+
+    // Return only necessary user info, without sensitive data like password hash
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role
+    };
+
+    res.status(200).json({ status: 'success', data: userResponse });
+  } catch (error) {
+    console.error('Error in getUserByEmail controller:', error);
+    next(new AppError(500, "Failed to fetch user by email."));
+  }
+};

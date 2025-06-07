@@ -42,8 +42,15 @@ export const authAPI = {
   },
   getCurrentUser: () => {
     return api.get('/auth/me');
-  }
+  },
+    // --- ADD THIS NEW METHOD HERE ---
+    getUserByEmail: (email: string) => {
+      // This will make a GET request to /users/by-email?email=some@example.com
+      return api.get(`/users/by-email?email=${encodeURIComponent(email)}`);
+    }
+
 };
+
 
 // Rooms API
 export const roomsAPI = {
