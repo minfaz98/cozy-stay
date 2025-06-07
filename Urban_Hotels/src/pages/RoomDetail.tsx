@@ -68,7 +68,7 @@ interface ReservationData {
 const sampleRooms = {
   'SINGLE': {
     title: "Single Room",
-    description: "Cozy single room with a comfortable bed",
+    description: "Luxurious single room with a comfortable bed",
     price: 119,
     capacity: 1,
     size: 250,

@@ -91,9 +91,9 @@ const ContactPage = () => {
                     <div>
                       <h3 className="font-medium">Email</h3>
                       <p className="text-gray-600 mt-1">
-                        Reservations: reservations@cozystay.com<br />
-                        Info: info@cozystay.com<br />
-                        Support: support@cozystay.com
+                        Reservations: reservations@urban.com<br />
+                        Info: info@urbanhotels.com<br />
+                        Support: support@urbanhotels.com
                       </p>
                     </div>
                   </div>

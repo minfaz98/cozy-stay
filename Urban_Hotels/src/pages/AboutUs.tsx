@@ -14,7 +14,7 @@ const AboutUs = () => {
       <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 min-h-[80vh]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-display font-bold text-hotel mb-4">About CozyStay</h1>
+            <h1 className="text-4xl font-display font-bold text-hotel mb-4">About Urban Hotels</h1>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Discover our story, our mission, and the passion that drives us to provide exceptional hospitality experiences.
             </p>
@@ -24,8 +24,8 @@ const AboutUs = () => {
             <div>
               <h2 className="text-2xl font-bold mb-4 text-hotel-dark">Our Story</h2>
               <p className="text-gray-700 mb-4">
-                Founded in 1998, CozyStay began with a simple vision: to create a home away from home for travelers. 
-                What started as a small family-run hotel has now grown into a beloved destination for thousands of guests each year.
+              Founded in 1998, Urban Hotels began with a simple vision: to create a home away from home for travelers. 
+              What started as a small family-run hotel has now grown into a beloved destination for thousands of guests each year.
               </p>
               <p className="text-gray-700">
                 Our philosophy remains unchanged: we believe in personalized service, attention to detail, and creating 
@@ -45,8 +45,8 @@ const AboutUs = () => {
             <div className="md:order-2">
               <h2 className="text-2xl font-bold mb-4 text-hotel-dark">Our Mission</h2>
               <p className="text-gray-700 mb-4">
-                At CozyStay, our mission is to provide exceptional hospitality that exceeds expectations. 
-                We strive to create a welcoming environment where every guest feels valued and cared for.
+              At Urban Hotels, our mission is to provide exceptional hospitality that exceeds expectations.
+              We strive to create a welcoming environment where every guest feels valued and cared for.
               </p>
               <p className="text-gray-700">
                 We are committed to sustainability, community engagement, and continuous improvement. 
@@ -152,7 +152,7 @@ const AboutUs = () => {
                 {
                   name: "Mohammed Minfaz",
                   title: "General Manager",
-                  bio: "With over 15 years of hospitality experience, Minfaz brings vision and leadership to CozyStay.",
+                  bio: "With over 15 years of hospitality experience, Minfaz brings vision and leadership to Urban Hotels.",
                   image: minfazImg
                 },
                 {

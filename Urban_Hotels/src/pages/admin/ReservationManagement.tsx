@@ -120,7 +120,7 @@ const ReservationManagement = () => {
   const { toast } = useToast();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -165,9 +165,18 @@ const ReservationManagement = () => {
   }, [navigate]);
 
   useEffect(() => {
-    // Fetch all rooms for walk-in dialog
-    roomsAPI.listRooms().then(res => setRooms(res.data.data || []));
-  }, [navigate]);
+    console.log('--- useEffect for roomsAPI.listRooms() running ---');
+    roomsAPI.listRooms()
+        .then(res => {
+            console.log('roomsAPI.listRooms() fetched response:', res);
+            console.log('Rooms data for dropdown (res.data.data):', res.data.data);
+            setRooms(res.data.data || []);
+            console.log('State `rooms` after setRooms:', res.data.data); // <-- ADD THIS NEW LOG
+        })
+        .catch(error => {
+            console.error('Error fetching rooms for dropdown:', error);
+        });
+}, [navigate]);
 
   const fetchReservations = async () => {
     try {
@@ -884,9 +893,9 @@ const ReservationManagement = () => {
               <Label>Room</Label>
               <select name="roomId" value={walkInForm.roomId} onChange={handleWalkInChange} required className="w-full border rounded px-2 py-1">
                 <option value="">Select Room</option>
-                {rooms.filter(r => r.is_available).map(room => (
-                  <option key={room.id} value={room.id}>{room.number} ({room.type})</option>
-                ))}
+                {rooms.filter(r => r.status === 'AVAILABLE').map(room => (
+                <option key={room.id} value={room.id}>{room.number} ({room.type})</option>
+              ))}
               </select>
             </div>
             <div className="space-y-2">

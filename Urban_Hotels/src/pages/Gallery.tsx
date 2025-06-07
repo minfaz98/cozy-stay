@@ -114,7 +114,7 @@ const Gallery = () => {
       {
         src: "https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
         alt: "Hotel Exterior",
-        caption: "CozyStay Hotel Exterior"
+        caption: "Urban Red Exterior"
       },
       {
         src: "https://images.unsplash.com/photo-1561501900-3701fa6a0864?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
@@ -196,9 +196,9 @@ const Gallery = () => {
           </Tabs>
           
           <div className="text-center mt-8 mb-16">
-            <h2 className="text-2xl font-bold text-hotel-dark mb-4">Experience CozyStay</h2>
+            <h2 className="text-2xl font-bold text-hotel-dark mb-4">Experience Urban Red</h2>
             <p className="text-lg text-gray-700 max-w-3xl mx-auto mb-6">
-              These images are just a glimpse of what awaits you at CozyStay. 
+              These images are just a glimpse of what awaits you at Urban Red. 
               We invite you to experience our exceptional hospitality in person.
             </p>
             <div className="aspect-w-16 aspect-h-9 max-w-4xl mx-auto rounded-lg overflow-hidden shadow-xl">

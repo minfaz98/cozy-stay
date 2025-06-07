@@ -249,7 +249,7 @@ const ReservationsPage = () => {
                   <CardHeader>
                     <CardTitle>Login to Your Account</CardTitle>
                     <CardDescription>
-                      Access your reservations by logging into your CozyStay account
+                      Access your reservations by logging into your Urban Hotels account
                     </CardDescription>
                   </CardHeader>
                   <CardContent>

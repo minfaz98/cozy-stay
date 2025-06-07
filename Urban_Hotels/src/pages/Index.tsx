@@ -22,6 +22,7 @@ import Layout from '@/components/Layout';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import Headerimage from '../assets/Headerimage.jpg';
 
 interface RoomProps {
   imgSrc: string;
@@ -82,7 +83,7 @@ const FeaturedRooms: React.FC = () => {
       title: "Single Room",
       type: "SINGLE",
       id: "single-1",
-      description: "Cozy and comfortable room perfect for solo travelers",
+      description: "Tranquilizing and comfortable room perfect for solo travelers",
       price: 99,
       amenities: ["Single Bed", "Work Desk", "Free Wi-Fi", "Private Bathroom", "Air Conditioning"],
       capacity: 1,
@@ -276,16 +277,18 @@ const Index = () => {
       {/* Hero Section */}
       <section 
         className="relative h-[80vh] min-h-[600px] bg-cover bg-center flex items-center"
-        style={{ backgroundImage: 'url("https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2")' }}
+        style={{ backgroundImage: `url(${Headerimage})` }} 
       >
         <div className="absolute inset-0 bg-black/50" />
         <div className="hotel-container relative z-10 text-white">
           <div className="max-w-2xl">
             <h1 className="text-5xl font-display font-bold mb-4">Experience Luxury & Comfort</h1>
             <p className="text-xl mb-8">Discover the perfect balance of hospitality, luxury, and comfort at Urban Red.</p>
+            <Link to="/rooms">
             <Button size="lg" className="bg-hotel-accent hover:brightness-110 text-white">
               Explore Rooms
             </Button>
+            </Link>
           </div>
         </div>
       </section>
