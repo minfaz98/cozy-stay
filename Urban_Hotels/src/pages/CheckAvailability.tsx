@@ -285,90 +285,188 @@ const CheckAvailability = () => {
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Bulk Room Booking</DialogTitle>
-                    <DialogDescription>
-                      Book multiple rooms of the same type for your company.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Room Type</Label>
-                      <Select
-                        value={bulkBookingData.roomType}
-                        onValueChange={(value: 'SINGLE' | 'DOUBLE' | 'FAMILY' | 'DELUXE' | 'SUITE') => 
-                          setBulkBookingData(prev => ({ ...prev, roomType: value }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select room type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="SINGLE">Single Room</SelectItem>
-                          <SelectItem value="DOUBLE">Double Room</SelectItem>
-                          <SelectItem value="FAMILY">Family Room</SelectItem>
-                          <SelectItem value="DELUXE">Deluxe Room</SelectItem>
-                          <SelectItem value="SUITE">Suite</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Number of Rooms (Minimum 2)</Label>
-                      <Input
-                        type="number"
-                        min="2"
-                        value={bulkBookingData.numberOfRooms}
-                        onChange={(e) => setBulkBookingData(prev => ({ 
-                          ...prev, 
-                          numberOfRooms: Math.max(2, parseInt(e.target.value) || 2)
-                        }))}
-                      />
-                    </div>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-green-800 mb-2">Bulk Booking Discount</h4>
-                      <div className="space-y-2">
-                        <p className="text-green-700">
-                          {bulkBookingData.numberOfRooms >= 10 ? (
-                            "🎉 30% discount for booking 10 or more rooms!"
-                          ) : bulkBookingData.numberOfRooms >= 5 ? (
-                            "🎉 20% discount for booking 5 or more rooms!"
-                          ) : bulkBookingData.numberOfRooms >= 3 ? (
-                            "🎉 15% discount for booking 3 or more rooms!"
-                          ) : (
-                            "🎉 10% discount for bulk booking!"
-                          )}
-                        </p>
-                        <p className="text-sm text-green-600">
-                          {bulkBookingData.numberOfRooms < 10 && bulkBookingData.numberOfRooms < 5 && bulkBookingData.numberOfRooms < 3 && 
-                            "Book more rooms to get higher discounts!"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Special Requests</Label>
-                      <Textarea
-                        value={bulkBookingData.specialRequests}
-                        onChange={(e) => setBulkBookingData(prev => ({ 
-                          ...prev, 
-                          specialRequests: e.target.value 
-                        }))}
-                        placeholder="Any special requests or requirements..."
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsBulkBookingOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleBulkBooking}
-                      disabled={loading}
-                      className="bg-hotel hover:bg-hotel-light"
-                    >
-                      {loading ? "Booking..." : "Book Rooms"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
+  <DialogHeader>
+    <DialogTitle>Bulk Room Booking</DialogTitle>
+    <DialogDescription>
+      Book multiple rooms of the same type for your company.
+    </DialogDescription>
+  </DialogHeader>
+  <div className="space-y-4 py-4">
+    <div className="space-y-2">
+      <Label>Room Type</Label>
+      <Select
+        value={bulkBookingData.roomType}
+        onValueChange={(value: 'SINGLE' | 'DOUBLE' | 'FAMILY' | 'DELUXE' | 'SUITE') =>
+          setBulkBookingData(prev => ({ ...prev, roomType: value }))
+        }
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Select room type" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="SINGLE">Single Room</SelectItem>
+          <SelectItem value="DOUBLE">Double Room</SelectItem>
+          <SelectItem value="FAMILY">Family Room</SelectItem>
+          <SelectItem value="DELUXE">Deluxe Room</SelectItem>
+          <SelectItem value="SUITE">Suite</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+    <div className="space-y-2">
+      <Label>Number of Rooms (Minimum 2)</Label>
+      <Input
+        type="number"
+        min="2"
+        value={bulkBookingData.numberOfRooms}
+        onChange={(e) => setBulkBookingData(prev => ({
+          ...prev,
+          numberOfRooms: Math.max(2, parseInt(e.target.value) || 2)
+        }))}
+      />
+    </div>
+    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+      <h4 className="font-semibold text-green-800 mb-2">Bulk Booking Discount</h4>
+      <div className="space-y-2">
+        <p className="text-green-700">
+          {bulkBookingData.numberOfRooms >= 10 ? (
+            "🎉 30% discount for booking 10 or more rooms!"
+          ) : bulkBookingData.numberOfRooms >= 5 ? (
+            "🎉 20% discount for booking 5 or more rooms!"
+          ) : bulkBookingData.numberOfRooms >= 3 ? (
+            "🎉 15% discount for booking 3 or more rooms!"
+          ) : (
+            "🎉 10% discount for bulk booking!"
+          )}
+        </p>
+        <p className="text-sm text-green-600">
+          {bulkBookingData.numberOfRooms < 10 && bulkBookingData.numberOfRooms < 5 && bulkBookingData.numberOfRooms < 3 &&
+            "Book more rooms to get higher discounts!"}
+        </p>
+      </div>
+    </div>
+    <div className="space-y-2">
+      <Label>Special Requests</Label>
+      <Textarea
+        value={bulkBookingData.specialRequests}
+        onChange={(e) => setBulkBookingData(prev => ({
+          ...prev,
+          specialRequests: e.target.value
+        }))}
+        placeholder="Any special requests or requirements..."
+      />
+    </div>
+
+    {/* --- START: CREDIT CARD DETAILS INPUTS --- */}
+    <div className="mb-6 space-y-4">
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="useBulkCard" // Make sure this ID is unique
+          checked={useCard}
+          onCheckedChange={(checked) => setUseCard(checked as boolean)}
+        />
+        <label
+          htmlFor="useBulkCard" // This must match the ID of the Checkbox
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Pay with Credit Card
+        </label>
+      </div>
+
+      {useCard && (
+        <div className="space-y-4 p-4 border rounded-lg">
+          <h3 className="font-semibold text-lg">Credit Card Details</h3>
+          <div>
+            <Label>Card Number</Label>
+            <Input
+              placeholder="1234 5678 9012 3456"
+              value={bulkCardDetails.cardNumber}
+              onChange={(e) => setBulkCardDetails(prev => ({
+                ...prev,
+                cardNumber: e.target.value.replace(/\D/g, '').slice(0, 16)
+              }))}
+              required={useCard} // Make required if useCard is true
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label>Expiry Month</Label>
+              <Input
+                placeholder="MM"
+                value={bulkCardDetails.expiryMonth}
+                onChange={(e) => setBulkCardDetails(prev => ({
+                  ...prev,
+                  expiryMonth: e.target.value.replace(/\D/g, '').slice(0, 2)
+                }))}
+                required={useCard}
+              />
+            </div>
+            <div>
+              <Label>Expiry Year</Label>
+              <Input
+                placeholder="YYYY"
+                value={bulkCardDetails.expiryYear}
+                onChange={(e) => setBulkCardDetails(prev => ({
+                  ...prev,
+                  expiryYear: e.target.value.replace(/\D/g, '').slice(0, 4)
+                }))}
+                required={useCard}
+              />
+            </div>
+            <div>
+              <Label>CVV</Label>
+              <Input
+                type="password" // Use type="password" for security
+                placeholder="123"
+                value={bulkCardDetails.cvv}
+                onChange={(e) => setBulkCardDetails(prev => ({
+                  ...prev,
+                  cvv: e.target.value.replace(/\D/g, '').slice(0, 4)
+                }))}
+                required={useCard}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>Card Holder Name</Label>
+            <Input
+              placeholder="John Doe"
+              value={bulkCardDetails.holderName}
+              onChange={(e) => setBulkCardDetails(prev => ({
+                ...prev,
+                holderName: e.target.value
+              }))}
+              required={useCard}
+            />
+          </div>
+        </div>
+      )}
+
+      {!useCard && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-yellow-800 text-sm">
+            ⚠️ Without credit card payment, your reservation will be pending and will be automatically cancelled at 7 PM if not confirmed.
+          </p>
+        </div>
+      )}
+    </div>
+    {/* --- END: CREDIT CARD DETAILS INPUTS --- */}
+
+  </div>
+  <DialogFooter>
+    <Button variant="outline" onClick={() => setIsBulkBookingOpen(false)}>
+      Cancel
+    </Button>
+    <Button
+      onClick={handleBulkBooking}
+      disabled={loading}
+      className="bg-hotel hover:bg-hotel-light"
+    >
+      {loading ? "Booking..." : "Book Rooms"}
+    </Button>
+  </DialogFooter>
+</DialogContent>
               </Dialog>
             </div>
           )}
