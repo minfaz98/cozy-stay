@@ -18,6 +18,7 @@ import { useAuth } from '@/context/AuthContext';
 import { roomsAPI, reservationsAPI } from '@/services/api';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Room type definition
 interface Room {
@@ -46,7 +47,19 @@ const CheckAvailability = () => {
     roomType: 'SINGLE' as 'SINGLE' | 'DOUBLE' | 'FAMILY' | 'DELUXE' | 'SUITE',
     numberOfRooms: 2,
     specialRequests: ''
+    
   });
+
+  // --- ADD THESE NEW STATE VARIABLES ---
+  const [useCard, setUseCard] = useState(false); // To toggle the credit card section
+  const [bulkCardDetails, setBulkCardDetails] = useState({ // Use a distinct name like bulkCardDetails
+    cardNumber: '',
+    expiryMonth: '',
+    expiryYear: '',
+    cvv: '',
+    holderName: ''
+  });
+  // --- END CORRECTLY PLACED STATE VARIABLES ---
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -122,7 +135,7 @@ const CheckAvailability = () => {
       });
       return;
     }
-
+  
     if (bulkBookingData.numberOfRooms < 2) {
       toast({
         title: "Invalid number of rooms",
@@ -131,16 +144,47 @@ const CheckAvailability = () => {
       });
       return;
     }
-
+  
+    // Frontend validation for credit card if useCard is checked
+    if (useCard) {
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1; // getMonth is 0-indexed (Jan is 0)
+  
+      const expiryMonthNum = parseInt(bulkCardDetails.expiryMonth, 10);
+      const expiryYearNum = parseInt(bulkCardDetails.expiryYear, 10);
+  
+      if (!bulkCardDetails.cardNumber || bulkCardDetails.cardNumber.length !== 16) {
+        toast({ title: "Invalid Card Number", description: "Card number must be 16 digits.", variant: "destructive" });
+        return;
+      }
+      if (isNaN(expiryMonthNum) || expiryMonthNum < 1 || expiryMonthNum > 12) {
+        toast({ title: "Invalid Expiry Month", description: "Expiry month must be between 01 and 12.", variant: "destructive" });
+        return;
+      }
+      if (isNaN(expiryYearNum) || expiryYearNum < currentYear || (expiryYearNum === currentYear && expiryMonthNum < currentMonth)) {
+        toast({ title: "Invalid Expiry Year", description: "Expiry year must be current or future.", variant: "destructive" });
+        return;
+      }
+      if (!bulkCardDetails.cvv || (bulkCardDetails.cvv.length < 3 || bulkCardDetails.cvv.length > 4)) {
+        toast({ title: "Invalid CVV", description: "CVV must be 3 or 4 digits.", variant: "destructive" });
+        return;
+      }
+      if (!bulkCardDetails.holderName || bulkCardDetails.holderName.trim() === '') {
+        toast({ title: "Missing Holder Name", description: "Card holder name is required.", variant: "destructive" });
+        return;
+      }
+    }
+  
+  
     setLoading(true);
     try {
       // First check available rooms
       const response = await roomsAPI.listRooms();
-      let availableRooms = response.data.data.filter(room => 
+      let availableRooms = response.data.data.filter(room =>
         room.type.toUpperCase() === bulkBookingData.roomType &&
         room.status === 'AVAILABLE'
       );
-
+  
       if (availableRooms.length < bulkBookingData.numberOfRooms) {
         toast({
           title: "Not enough rooms",
@@ -150,7 +194,26 @@ const CheckAvailability = () => {
         setLoading(false);
         return;
       }
-
+  
+      // Construct the credit card object
+      const creditCardPayload = useCard
+        ? {
+            cardNumber: bulkCardDetails.cardNumber,
+            expiryMonth: parseInt(bulkCardDetails.expiryMonth, 10), // Convert to number for API
+            expiryYear: parseInt(bulkCardDetails.expiryYear, 10),   // Convert to number for API
+            cvv: bulkCardDetails.cvv,
+            holderName: bulkCardDetails.holderName,
+          }
+        : {
+            // If not paying with card, send dummy data as backend requires it
+            cardNumber: "0000000000000000",
+            expiryMonth: 1,
+            expiryYear: 2030, // Future date
+            cvv: "000",
+            holderName: "DUMMY ACCOUNT",
+          };
+  
+  
       // Create bulk reservation
       const response2 = await reservationsAPI.createBulkReservation({
         roomType: bulkBookingData.roomType,
@@ -158,17 +221,19 @@ const CheckAvailability = () => {
         checkIn: checkInDate.toISOString(),
         checkOut: checkOutDate.toISOString(),
         discountRate: getDiscountRate(bulkBookingData.numberOfRooms),
-        specialRequests: bulkBookingData.specialRequests
+        specialRequests: bulkBookingData.specialRequests,
+        creditCard: creditCardPayload, // <--- THIS LINE IS NOW CORRECTLY PLACED AND RECEIVING THE PAYLOAD
       });
-
+  
       toast({
         title: "Success!",
         description: `Successfully booked ${bulkBookingData.numberOfRooms} ${bulkBookingData.roomType.toLowerCase()} rooms.`,
       });
-      
+  
       setIsBulkBookingOpen(false);
       navigate('/reservations');
     } catch (error: any) {
+      console.error("Bulk booking API error:", error.response?.data || error.message);
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to create bulk booking. Please try again.",
@@ -178,7 +243,6 @@ const CheckAvailability = () => {
       setLoading(false);
     }
   };
-
   const handleBookNow = (room: Room) => {
     if (!user) {
       // Store the room ID and dates in localStorage for after login

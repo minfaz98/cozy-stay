@@ -32,6 +32,17 @@ api.interceptors.response.use(
   }
 );
 
+// --- Define CreditCardInput Interface here (or wherever you prefer to keep interfaces) ---
+interface CreditCardInput {
+  cardNumber: string;
+  expiryMonth: number;
+  expiryYear: number;
+  cvv: string;
+  holderName: string;
+}
+// --- End CreditCardInput Interface ---
+
+
 // Auth API
 export const authAPI = {
   register: (data: { email: string; password: string; name: string; role?: string }) => {
@@ -43,12 +54,9 @@ export const authAPI = {
   getCurrentUser: () => {
     return api.get('/auth/me');
   },
-    // --- ADD THIS NEW METHOD HERE ---
-    getUserByEmail: (email: string) => {
-      // This will make a GET request to /users/by-email?email=some@example.com
-      return api.get(`/users/by-email?email=${encodeURIComponent(email)}`);
-    }
-
+  getUserByEmail: (email: string) => {
+    return api.get(`/users/by-email?email=${encodeURIComponent(email)}`);
+  }
 };
 
 
@@ -92,9 +100,12 @@ export const reservationsAPI = {
     checkOut: string;
     discountRate: number;
     specialRequests?: string;
+    // --- ADD THIS LINE HERE to the inline type definition ---
+    creditCard: CreditCardInput; // Now TypeScript knows this property exists
   }) => {
     return api.post('/reservations/bulk', data);
   },
+
   cancelReservation: async (id: string) => {
     const response = await api.post(`/reservations/${id}/cancel`);
     return response.data;
@@ -112,13 +123,13 @@ export const reservationsAPI = {
 
 // Reports API
 export const reportsAPI = {
-  getRevenueReport: (startDate: string, endDate: string) => 
+  getRevenueReport: (startDate: string, endDate: string) =>
     api.get('/reports/revenue', { params: { startDate, endDate } }),
-  
-  getOccupancyReport: (startDate: string, endDate: string) => 
+
+  getOccupancyReport: (startDate: string, endDate: string) =>
     api.get('/reports/occupancy', { params: { startDate, endDate } }),
-  
-  getProjectionsReport: (startDate: string, endDate: string) => 
+
+  getProjectionsReport: (startDate: string, endDate: string) =>
     api.get('/reports/projections', { params: { startDate, endDate } })
 };
 
@@ -138,4 +149,4 @@ export const billingAPI = {
   }
 };
 
-export default api; 
+export default api;
