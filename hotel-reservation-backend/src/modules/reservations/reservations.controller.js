@@ -93,10 +93,26 @@ export const createReservation = async (req, res, next) => {
     const { roomId, checkIn, checkOut, guests, creditCard, totalAmount } =
       validatedData;
 
+      // --- ADD THIS DEBUG LOG ---
+    console.log("--- createReservation Debug ---");
+    console.log("Requested Room ID (from frontend):", roomId);
+    // --- END DEBUG LOG ---
+
+
     // Check if room exists and is available
     const room = await prisma.room.findUnique({
       where: { id: roomId },
     });
+
+        // --- ADD THIS DEBUG LOG ---
+        if (room) {
+          console.log("Found Room Type for ID:", room.type);
+          console.log("Found Room Number for ID:", room.number);
+      } else {
+          console.log("Room not found for ID:", roomId);
+      }
+      console.log("----------------------------");
+      // --- END DEBUG LOG ---
 
     if (!room) {
       throw new AppError(404, "Room not found");
@@ -366,8 +382,44 @@ export const createBulkBooking = async (req, res, next) => {
       checkOut,
       discountRate,
       specialRequests,
-      creditCard,
+      creditCard, // We will use this to determine status
     } = validatedData;
+
+        // --- ADD THESE DEBUG LOGS ---
+        console.log("--- createBulkBooking Debug ---");
+        console.log("Requested Room Type (from frontend):", roomType);
+        console.log("Requested Number of Rooms:", numberOfRooms);
+        // --- END DEBUG LOGS ---
+
+    // --- START OF NEW LOGIC FOR STATUS DETERMINATION ---
+
+    // Determine initial status based on credit card details
+    // The frontend sends dummy data ("0000..." for cardNumber, "DUMMY ACCOUNT" for holderName)
+    // when a credit card is not provided for bulk booking.
+    let initialStatus = 'CONFIRMED';
+    const isDummyCard =
+        creditCard.cardNumber === "0000000000000000" &&
+        creditCard.holderName === "DUMMY ACCOUNT";
+
+    if (isDummyCard) {
+        initialStatus = 'PENDING';
+    }
+
+    // Apply 7 PM cutoff logic if the status is PENDING
+    if (initialStatus === 'PENDING') {
+        const now = new Date();
+        const cutoffTime = new Date();
+        cutoffTime.setHours(19, 0, 0, 0); // 7 PM today
+
+        if (now >= cutoffTime) {
+            throw new AppError(
+                400,
+                "Pending bulk bookings cannot be created after 7 PM. Please provide valid credit card details to confirm the booking."
+            );
+        }
+    }
+
+    // --- END OF NEW LOGIC FOR STATUS DETERMINATION ---
 
     // Find available rooms of the specified type
     const availableRooms = await prisma.room.findMany({
@@ -393,6 +445,11 @@ export const createBulkBooking = async (req, res, next) => {
       take: numberOfRooms,
     });
 
+    // ---  THIS DEBUG LOG ---
+    console.log("Found available rooms for booking:", availableRooms.map(room => ({ id: room.id, type: room.type, number: room.number })));
+    console.log("----------------------------");
+    // --- END DEBUG LOG ---
+
     if (availableRooms.length < numberOfRooms) {
       throw new AppError(
         400,
@@ -409,8 +466,9 @@ export const createBulkBooking = async (req, res, next) => {
             userId: req.user.id,
             checkIn: new Date(checkIn),
             checkOut: new Date(checkOut),
-            status: "CONFIRMED",
+            status: initialStatus, // <--- CHANGED THIS LINE!
             totalAmount: room.price * (1 - discountRate),
+            // Credit card details are always sent by frontend, even if dummy
             creditCard: {
               create: {
                 cardNumber: creditCard.cardNumber,
@@ -424,8 +482,8 @@ export const createBulkBooking = async (req, res, next) => {
               create: {
                 userId: req.user.id,
                 amount: room.price * (1 - discountRate),
-                status: "PENDING",
-                paymentMethod: "CREDIT_CARD",
+                status: initialStatus === 'CONFIRMED' ? "PAID" : "PENDING", // Adjust billing status based on initialStatus
+                paymentMethod: "CREDIT_CARD", // Assuming it's always CC even if dummy
               },
             },
           },
