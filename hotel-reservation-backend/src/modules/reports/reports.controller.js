@@ -176,6 +176,89 @@ export const getRevenueReport = async (req, res, next) => {
   }
 };
 
+export const getProjectedOccupancyReport = async (req, res, next) => {
+  try {
+    // Placeholder for projected occupancy report - This would require more complex logic
+    // For now, returning a basic response
+    res.json({
+      status: 'success',
+      data: {
+        message: 'Projected occupancy report not fully implemented yet.',
+        projections: [], // Placeholder for future data
+        period: {
+          start: req.query.startDate || null,
+          end: req.query.endDate || null
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+export const getFinancialReport = async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const where = {
+      status: 'COMPLETED'
+    };
+
+    if (startDate && endDate) {
+      where.createdAt = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      };
+    }
+
+    const billings = await prisma.billing.findMany({
+      where,
+      include: {
+        reservation: {
+          include: {
+            optionalCharges: true
+          }
+        }
+      }
+    });
+
+    const totalRevenue = billings.reduce((sum, billing) => sum + billing.amount, 0);
+
+    const roomRevenue = billings
+      .filter(billing => billing.reservation)
+      .reduce((sum, billing) => {
+        const roomCharge = billing.amount - (billing.reservation.optionalCharges.reduce((sum, charge) => sum + charge.amount, 0) || 0);
+        return sum + roomCharge;
+      }, 0);
+
+    const optionalChargesRevenue = billings.reduce((sum, billing) => {
+      if (billing.reservation && billing.reservation.optionalCharges) {
+        return sum + billing.reservation.optionalCharges.reduce((chargeSum, charge) => chargeSum + charge.amount, 0);
+      }
+      return sum;
+    }, 0);
+
+    // You can add more breakdowns here if needed (e.g., by payment method)
+
+    res.json({
+      status: 'success',
+      data: {
+        totalRevenue,
+        roomRevenue,
+        optionalChargesRevenue,
+        // Add other financial metrics here
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getRevenueByRoomTypeReport = async (req, res, next) => {
+  // This is partially covered by getRevenueReport, but a dedicated endpoint could provide a more focused view
+  res.json({ status: 'success', data: { message: 'Revenue by room type report logic is within getRevenueReport.' } });
+};
+
 export const getProjectionsReport = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;

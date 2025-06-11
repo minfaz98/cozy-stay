@@ -105,18 +105,26 @@ export const reservationsAPI = {
 
 // Reports API
 export const reportsAPI = {
-  getRevenueReport: (startDate: string, endDate: string) => 
+  getRevenueReport: (startDate?: string, endDate?: string) =>
     api.get('/reports/revenue', { params: { startDate, endDate } }),
-  
-  getOccupancyReport: (startDate: string, endDate: string) => 
+
+  getOccupancyReport: (startDate?: string, endDate?: string) =>
     api.get('/reports/occupancy', { params: { startDate, endDate } }),
-  
-  getProjectionsReport: (startDate: string, endDate: string) => 
-    api.get('/reports/projections', { params: { startDate, endDate } })
+
+  getProjectionsReport: (startDate?: string, endDate?: string) =>
+    api.get('/reports/projections', { params: { startDate, endDate } }),
+
+  getFinancialReport: (startDate?: string, endDate?: string) =>
+    api.get('/reports/financial', { params: { startDate, endDate } }),
+
+  getRevenueByRoomTypeReport: (startDate?: string, endDate?: string) =>
+    api.get('/reports/revenue/by-room-type', { params: { startDate, endDate } }),
 };
 
 // Billing API
 export const billingAPI = {
+  getInvoicesForUser: () => api.get('/billing/user/invoices'),
+  getPaymentHistoryForUser: () => api.get('/billing/user/payments'),
   generateInvoice: (reservationId: string) => {
     return api.get(`/billing/invoice/${reservationId}`);
   },
@@ -126,8 +134,11 @@ export const billingAPI = {
   getPaymentHistory: (reservationId: string) => {
     return api.get(`/billing/history/${reservationId}`);
   },
-  refundPayment: (paymentId: string, reason: string) => {
-    return api.post(`/billing/refund/${paymentId}`, { reason });
+  addOptionalCharge: (data: { reservationId: string; description: string; amount: number }) => {
+ return api.post('/billing/optional-charge', data);
+  },
+ refundPayment: (paymentId: string, reason: string) => {
+ return api.post(`/billing/refund/${paymentId}`, { reason });
   }
 };
 

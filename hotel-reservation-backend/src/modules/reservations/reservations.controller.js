@@ -314,6 +314,122 @@ export const cancelReservation = async (req, res, next) => {
   }
 };
 
+export const checkInReservation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { walkIn, customerDetails } = req.body; // Assuming walkIn flag and customerDetails are in the request body
+
+    let reservation;
+    let userId;
+
+    if (walkIn) {
+      // Create a new user for walk-in
+      if (!customerDetails || !customerDetails.name || !customerDetails.email) {
+        throw new AppError(400, "Customer details are required for walk-in");
+      }
+      const newUser = await prisma.user.create({
+        data: {
+          name: customerDetails.name,
+          email: customerDetails.email,
+          // Assign a temporary password or handle password creation separately
+          password: "temporary_password", // TODO: Implement proper password handling
+          role: "CUSTOMER",
+        },
+      });
+      userId = newUser.id;
+
+      // Create a new reservation for walk-in (assuming room type and dates are provided in customerDetails)
+      if (!customerDetails.roomType || !customerDetails.checkIn || !customerDetails.checkOut) {
+         throw new AppError(400, "Room type and dates are required for walk-in reservation");
+      }
+      const assignedRoom = await assignAvailableRoom(customerDetails.roomType, customerDetails.checkIn, customerDetails.checkOut); // Assume this helper function exists
+      if (!assignedRoom) {
+        throw new AppError(400, "No available rooms for the requested type and dates");
+      }
+
+      reservation = await prisma.reservation.create({
+        data: {
+          userId: userId,
+          roomId: assignedRoom.id,
+          checkIn: new Date(customerDetails.checkIn),
+          checkOut: new Date(customerDetails.checkOut),
+          guests: customerDetails.guests || 1,
+          status: "CHECKED_IN",
+          totalAmount: assignedRoom.price * ((new Date(customerDetails.checkOut) - new Date(customerDetails.checkIn)) / (1000 * 60 * 60 * 24)), // Basic calculation
+        },
+        include: {
+          room: true,
+          user: true,
+        },
+      });
+
+    } else {
+      // Check in an existing reservation
+      reservation = await prisma.reservation.findUnique({
+        where: { id },
+        include: {
+          room: true,
+          user: true,
+        },
+      });
+
+      if (!reservation) {
+        throw new AppError(404, "Reservation not found");
+      }
+
+      if (reservation.status === "CHECKED_IN") {
+        throw new AppError(400, "Reservation is already checked in");
+      }
+
+      if (reservation.status === "CANCELLED" || reservation.status === "NO_SHOW" || reservation.status === "CHECKED_OUT") {
+         throw new AppError(400, `Cannot check in a reservation with status ${reservation.status}`);
+      }
+
+      // If reservation exists but no room assigned (unlikely with current create logic, but good for robustness)
+      if (!reservation.roomId) {
+         const assignedRoom = await assignAvailableRoom(reservation.room.type, reservation.checkIn, reservation.checkOut);
+         if (!assignedRoom) {
+           throw new AppError(400, "Could not assign a room for this reservation");
+         }
+         reservation = await prisma.reservation.update({
+           where: { id },
+           data: { roomId: assignedRoom.id, status: "CHECKED_IN" },
+            include: {
+              room: true,
+              user: true,
+            },
+         });
+      } else {
+         reservation = await prisma.reservation.update({
+           where: { id },
+           data: { status: "CHECKED_IN" },
+           include: {
+             room: true,
+             user: true,
+           },
+         });
+      }
+       userId = reservation.userId;
+    }
+
+    // Optionally update room status to occupied, but this might be handled by the `assignAvailableRoom` helper
+    await prisma.room.update({
+      where: { id: reservation.roomId },
+      data: { status: "OCCUPIED" },
+    });
+
+    res.json({
+      status: "success",
+      data: reservation,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Assume assignAvailableRoom helper function exists elsewhere
+async function assignAvailableRoom(roomType, checkIn, checkOut) { /* ... */ return null;}
+
 export const getUserReservations = async (req, res, next) => {
   try {
     console.log("User from request:", req.user); // Debug log
@@ -350,6 +466,127 @@ export const getUserReservations = async (req, res, next) => {
     next(error);
   }
 };
+
+export const checkOutReservation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { paymentMethod, optionalCharges } = req.body; // Assuming paymentMethod and optionalCharges are in the request body
+
+    const reservation = await prisma.reservation.findUnique({
+      where: { id },
+      include: {
+        room: true,
+        user: true,
+        billing: true, // Include existing billing records
+      },
+    });
+
+    if (!reservation) {
+      throw new AppError(404, "Reservation not found");
+    }
+
+    if (reservation.status === "CHECKED_OUT") {
+      throw new AppError(400, "Reservation is already checked out");
+    }
+
+     if (reservation.status !== "CHECKED_IN") {
+       throw new AppError(400, `Cannot check out a reservation with status ${reservation.status}`);
+     }
+
+    // Calculate base room charges
+    const checkInDate = new Date(reservation.checkIn);
+    const checkOutDate = new Date(); // Use current time for actual checkout
+    const scheduledCheckOutDate = new Date(reservation.checkOut);
+
+    const timeDifference = checkOutDate.getTime() - checkInDate.getTime();
+    const numberOfNights = Math.ceil(timeDifference / (1000 * 60 * 60 * 24));
+
+    let roomCharges = reservation.room.price * numberOfNights;
+
+    // Add optional charges
+    let totalOptionalCharges = 0;
+    if (optionalCharges && Array.isArray(optionalCharges)) {
+       // Assuming optionalCharges is an array of objects like { description: string, amount: number }
+       totalOptionalCharges = optionalCharges.reduce((sum, charge) => sum + charge.amount, 0);
+       // TODO: Save optional charges to a new table if needed
+    }
+
+    // Check for late check-out (assuming checkout time is usually around noon)
+    const lateCheckOutThreshold = new Date(scheduledCheckOutDate);
+    lateCheckOutThreshold.setHours(12, 0, 0, 0); // Assuming 12 PM is the standard checkout time
+
+    if (checkOutDate > lateCheckOutThreshold) {
+      roomCharges += reservation.room.price; // Charge for an additional night
+       // TODO: Add a record for the late checkout charge if needed
+    }
+
+    const finalBillAmount = roomCharges + totalOptionalCharges;
+
+    // Create billing record for the final bill
+    const billing = await prisma.billing.create({
+      data: {
+        reservationId: reservation.id,
+        userId: reservation.userId,
+        amount: finalBillAmount,
+        status: "PAID", // Assuming payment is processed at checkout
+        paymentMethod: paymentMethod || "CASH", // Default to CASH if not provided
+      },
+    });
+
+    // Update reservation status
+    const updatedReservation = await prisma.reservation.update({
+      where: { id },
+      data: { status: "CHECKED_OUT" },
+      include: {
+        room: true,
+        user: true,
+        billing: true,
+      },
+    });
+
+     // Optionally update room status to clean/available
+     await prisma.room.update({
+       where: { id: reservation.roomId },
+       data: { status: "CLEAN" }, // Assuming a 'CLEAN' status or similar
+     });
+
+    res.json({
+      status: "success",
+      data: updatedReservation,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// Assume calculateFinalBill and assignAvailableRoom helper functions exist elsewhere
+async function calculateFinalBill(reservationId, optionalCharges = []) { /* ... */ return 0; } // This helper is not strictly needed now as calculation is in controller
+
+
+// Helper function to find and assign an available room
+async function assignAvailableRoom(roomType, checkIn, checkOut) {
+    const availableRoom = await prisma.room.findFirst({
+        where: {
+            type: roomType,
+            status: "AVAILABLE", // Or 'CLEAN' depending on your status workflow
+            reservations: {
+                none: {
+                    AND: [
+                        { status: { in: ["CONFIRMED", "CHECKED_IN"] } },
+                        {
+                            OR: [
+                                { checkIn: { lte: new Date(checkOut) } },
+                                { checkOut: { gte: new Date(checkIn) } },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    });
+    return availableRoom;
+}
 
 export const createBulkBooking = async (req, res, next) => {
   try {

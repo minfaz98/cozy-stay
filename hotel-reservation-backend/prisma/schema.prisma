@@ -49,6 +49,7 @@ model Reservation {
   updatedAt     DateTime       @updatedAt
   billing       Billing?
   creditCard    CreditCard?
+  optionalCharges OptionalCharge[]
 }
 
 model Billing {
@@ -77,6 +78,15 @@ model CreditCard {
   updatedAt     DateTime      @updatedAt
 }
 
+model OptionalCharge {
+  id            String         @id @default(uuid())
+  reservation   Reservation    @relation(fields: [reservationId], references: [id])
+  reservationId String
+  description   String
+  amount        Float
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
 enum Role {
   CUSTOMER
   COMPANY

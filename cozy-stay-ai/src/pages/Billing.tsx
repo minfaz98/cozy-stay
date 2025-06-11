@@ -1,55 +1,90 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { billingAPI } from "@/services/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { differenceInDays } from "date-fns";
 
 interface Payment {
   id: string;
   amount: number;
-  date: string;
-  status: string;
-  type: string;
-}
-
-interface Invoice {
-  id: string;
-  bookingId: string;
+  reservationId: string;
   totalAmount: number;
   status: string;
-  dueDate: string;
+  createdAt: string;
+  updatedAt: string;
+  optionalCharges?: OptionalCharge[];
+  reservation?: {
+    checkIn: string;
+    checkOut: string;
+    id: string;
+    room: {
+      id: string;
+      price: number;
+    };
+  };
+}
+
+interface OptionalCharge {
+  id: string;
+  description: string;
+  amount: number;
+  createdAt: string;
 }
 
 export default function Billing() {
+  const { user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
-  const { user } = useAuth();
 
   useEffect(() => {
-    if (user?.role === "MANAGER") {
-      fetchBillingData();
+    if (user) {
+      fetchInvoices();
+      fetchPaymentHistory();
     }
   }, [user]);
 
-  const fetchBillingData = async () => {
+  const fetchInvoices = async () => {
     try {
-      // In a real app, you would fetch this data based on the current user's bookings
-      const [paymentsResponse, invoicesResponse] = await Promise.all([
-        billingAPI.getPaymentHistory("current"),
-        billingAPI.generateInvoice("current"),
+      const [invoicesResponse] = await Promise.all([
+        billingAPI.getInvoicesForUser(),
+        billingAPI.getPaymentHistoryForUser(),
       ]);
-      setPayments(paymentsResponse.data);
-      setInvoices(invoicesResponse.data);
+      setInvoices(invoicesResponse.data.invoices);
     } catch (error) {
       toast.error("Failed to fetch billing data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPaymentHistory = async () => {
+    try {
+      const paymentsResponse = await billingAPI.getPaymentHistoryForUser();
+      setPayments(paymentsResponse.data.payments);
+    } catch (error) {
+      toast.error("Failed to fetch payment history");
     }
   };
 
@@ -61,10 +96,11 @@ export default function Billing() {
       await billingAPI.recordPayment({
         invoiceId: selectedInvoice,
         amount: parseFloat(paymentAmount),
-        type: "CREDIT_CARD",
+        method: "CREDIT_CARD",
       });
       toast.success("Payment recorded successfully");
-      fetchBillingData();
+      fetchInvoices();
+      fetchPaymentHistory();
       setSelectedInvoice(null);
       setPaymentAmount("");
     } catch (error) {
@@ -78,7 +114,7 @@ export default function Billing() {
     try {
       await billingAPI.refundPayment(paymentId, "Customer request");
       toast.success("Refund processed successfully");
-      fetchBillingData();
+      fetchPaymentHistory();
     } catch (error) {
       toast.error("Failed to process refund");
     }
@@ -88,10 +124,20 @@ export default function Billing() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const calculateRoomCharge = (reservation: Payment["reservation"]) => {
+    if (!reservation) return 0;
+    const checkInDate = new Date(reservation.checkIn);
+    const days = differenceInDays(new Date(reservation.checkOut), checkInDate);
+    const effectiveDays = days > 0 ? days : 1;
+    return reservation.room.price * effectiveDays;
+  };
+
   if (user?.role !== "MANAGER") {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-xl text-gray-600">Access denied. Only managers can access billing.</p>
+        <p className="text-xl text-gray-600">
+          Access denied. Only managers can access billing.
+        </p>
       </div>
     );
   }
@@ -106,9 +152,10 @@ export default function Billing() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Billing</h1>
+      <h1 className="text-3xl font-bold mb-8">Billing Information</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Invoices Section */}
         <Card>
           <CardHeader>
             <CardTitle>Invoices</CardTitle>
@@ -116,44 +163,72 @@ export default function Billing() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {invoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="p-4 border rounded-lg flex justify-between items-center"
-                >
-                  <div>
-                    <p className="font-semibold">Invoice #{invoice.id}</p>
-                    <p className="text-sm text-gray-600">
-                      Due: {formatDate(invoice.dueDate)}
-                    </p>
-                    <p className="text-sm">Amount: ${invoice.totalAmount}</p>
-                    <p className="text-sm">
-                      Status:{" "}
-                      <span
-                        className={`font-semibold ${
-                          invoice.status === "PAID"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
+              {invoices.length === 0 ? (
+                <p className="text-center text-gray-500">No invoices found.</p>
+              ) : (
+                invoices.map((invoice) => (
+                  <Card
+                    key={invoice.id}
+                    className="p-4 border rounded-lg flex justify-between items-start"
+                  >
+                    <div className="flex-grow">
+                      <p className="font-semibold">Invoice #{invoice.id}</p>
+                      <p className="text-sm text-gray-600">
+                        Reservation ID: {invoice.reservationId}
+                      </p>
+                      <p className="text-sm">
+                        Created: {formatDate(invoice.createdAt)}
+                      </p>
+                      {invoice.reservation && (
+                        <div className="mt-2 text-sm">
+                          <p className="font-medium">Charges:</p>
+                          <p>
+                            - Room Charge: $
+                            {calculateRoomCharge(invoice.reservation).toFixed(2)}
+                          </p>
+                          {invoice.optionalCharges &&
+                            invoice.optionalCharges.map((charge) => (
+                              <p key={charge.id}>
+                                - {charge.description}: $
+                                {charge.amount.toFixed(2)}
+                              </p>
+                            ))}
+                        </div>
+                      )}
+                      <p className="text-sm font-semibold mt-2">
+                        Total Amount: ${invoice.totalAmount.toFixed(2)}
+                      </p>
+                      <p className="text-sm mt-1">
+                        Status:{" "}
+                        <span
+                          className={`font-semibold ${
+                            invoice.status === "PAID"
+                              ? "text-green-600"
+                              : invoice.status === "PENDING"
+                              ? "text-yellow-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {invoice.status}
+                        </span>
+                      </p>
+                    </div>
+                    {invoice.status !== "PAID" && (
+                      <Button
+                        onClick={() => setSelectedInvoice(invoice.id)}
+                        variant="outline"
                       >
-                        {invoice.status}
-                      </span>
-                    </p>
-                  </div>
-                  {invoice.status !== "PAID" && (
-                    <Button
-                      onClick={() => setSelectedInvoice(invoice.id)}
-                      variant="outline"
-                    >
-                      Pay Now
-                    </Button>
-                  )}
-                </div>
-              ))}
+                        Pay Now
+                      </Button>
+                    )}
+                  </Card>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
 
+        {/* Payment History Section */}
         <Card>
           <CardHeader>
             <CardTitle>Payment History</CardTitle>
@@ -161,78 +236,90 @@ export default function Billing() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {payments.map((payment) => (
-                <div
-                  key={payment.id}
-                  className="p-4 border rounded-lg flex justify-between items-center"
-                >
-                  <div>
-                    <p className="font-semibold">Payment #{payment.id}</p>
-                    <p className="text-sm text-gray-600">
-                      Date: {formatDate(payment.date)}
-                    </p>
-                    <p className="text-sm">Amount: ${payment.amount}</p>
-                    <p className="text-sm">
-                      Status:{" "}
-                      <span
-                        className={`font-semibold ${
-                          payment.status === "COMPLETED"
-                            ? "text-green-600"
-                            : "text-yellow-600"
-                        }`}
+              {payments.length === 0 ? (
+                <p className="text-center text-gray-500">
+                  No payment history found.
+                </p>
+              ) : (
+                payments.map((payment) => (
+                  <Card
+                    key={payment.id}
+                    className="p-4 border rounded-lg flex justify-between items-start"
+                  >
+                    <div className="flex-grow">
+                      <p className="font-semibold">Payment #{payment.id}</p>
+                      <p className="text-sm text-gray-600">
+                        Date: {formatDate(payment.createdAt)}
+                      </p>
+                      <p className="text-sm">
+                        Amount: ${payment.amount.toFixed(2)}
+                      </p>
+                      <p className="text-sm">
+                        Status:{" "}
+                        <span
+                          className={`font-semibold ${
+                            payment.status === "COMPLETED"
+                              ? "text-green-600"
+                              : "text-yellow-600"
+                          }`}
+                        >
+                          {payment.status}
+                        </span>
+                      </p>
+                    </div>
+                    {payment.status === "COMPLETED" && (
+                      <Button
+                        onClick={() => handleRefund(payment.id)}
+                        variant="destructive"
+                        className="ml-4"
                       >
-                        {payment.status}
-                      </span>
-                    </p>
-                  </div>
-                  {payment.status === "COMPLETED" && (
-                    <Button
-                      onClick={() => handleRefund(payment.id)}
-                      variant="destructive"
-                    >
-                      Refund
-                    </Button>
-                  )}
-                </div>
-              ))}
+                        Refund
+                      </Button>
+                    )}
+                  </Card>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {selectedInvoice && (
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>Process Payment</CardTitle>
-            <CardDescription>Enter payment details</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handlePayment} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setSelectedInvoice(null)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit">Process Payment</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+      {/* Payment Dialog */}
+      <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Process Payment for Invoice #{selectedInvoice}
+            </DialogTitle>
+            <DialogDescription>
+              Enter payment details to process the invoice.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePayment} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedInvoice(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Process Payment</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-} 
+}

@@ -407,7 +407,7 @@ const ReservationsPage = () => {
                           <div className="flex flex-col items-end gap-1">
                             <div className="flex items-center space-x-2 mb-4">
                               <div className={`px-2 py-1 rounded-full text-sm ${
-                                reservation.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
+ reservation.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
                                 reservation.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                                 reservation.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
                                 reservation.status === 'CHECKED_IN' ? 'bg-blue-100 text-blue-800' :
@@ -420,6 +420,12 @@ const ReservationsPage = () => {
                                 <div className="text-sm text-yellow-600">
                                   <AlertCircle className="h-4 w-4 inline mr-1" />
                                   Will be cancelled at 7 PM if not confirmed with credit card
+                                </div>
+                              )}
+                              {reservation.status === 'NO_SHOW' && (
+                                <div className="text-sm text-red-600">
+                                  <AlertCircle className="h-4 w-4 inline mr-1" />
+                                  Guest did not show up for this reservation.
                                 </div>
                               )}
                             </div>
@@ -500,7 +506,7 @@ const ReservationsPage = () => {
                             Add Credit Card
                           </Button>
                         )}
-                        {(reservation.status === 'PENDING' || reservation.status === 'CONFIRMED') && (
+ {(reservation.status === 'PENDING' || reservation.status === 'CONFIRMED') && (
                           <>
                             <Button variant="outline" onClick={() => handleModifyReservation(reservation)}>Modify</Button>
                             <Button 

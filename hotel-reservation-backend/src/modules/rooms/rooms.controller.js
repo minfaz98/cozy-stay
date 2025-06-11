@@ -79,6 +79,35 @@ export const listRooms = async (req, res, next) => {
   }
 };
 
+// Helper function to find an available room
+export const assignAvailableRoom = async (roomType, checkIn, checkOut) => {
+  try {
+    const availableRoom = await prisma.room.findFirst({
+      where: {
+        type: roomType,
+        status: "AVAILABLE", // Assuming 'AVAILABLE' status means ready for booking
+        reservations: {
+          none: {
+            AND: [
+              { status: { in: ["CONFIRMED", "CHECKED_IN"] } },
+              {
+                OR: [
+                  { checkIn: { lte: new Date(checkOut) } },
+                  { checkOut: { gte: new Date(checkIn) } },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    });
+    return availableRoom;
+  } catch (error) {
+    console.error("Error assigning available room:", error);
+    return null;
+  }
+};
+
 export const getRoom = async (req, res, next) => {
   try {
     const { id } = req.params;

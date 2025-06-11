@@ -33,13 +33,10 @@ import { format } from "date-fns";
 import { Calendar as CalendarIcon, Search, Filter, CreditCard, Receipt, PlusCircle, Edit2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { reservationsAPI, billingAPI, roomsAPI } from "@/services/api";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authAPI } from '@/services/api';
 
@@ -149,6 +146,13 @@ const ReservationManagement = () => {
   const [isEditCheckoutOpen, setIsEditCheckoutOpen] = useState(false);
   const [newCheckoutDate, setNewCheckoutDate] = useState<string | null>(null);
 
+  const [isAddOptionalChargeOpen, setIsAddOptionalChargeOpen] = useState(false);
+  const [optionalChargeForm, setOptionalChargeForm] = useState({
+    description: '',
+    amount: '',
+    reservationId: '',
+  });
+
   useEffect(() => {
     // Check if user is authenticated as admin
     const adminAuth = localStorage.getItem('adminAuthenticated');
@@ -165,7 +169,7 @@ const ReservationManagement = () => {
   }, [navigate]);
 
   useEffect(() => {
-    // Fetch all rooms for walk-in dialog
+    // Fetch all rooms for walk-in dialog and potentially for room type filtering later
     roomsAPI.listRooms().then(res => setRooms(res.data.data || []));
   }, [navigate]);
 
@@ -344,6 +348,40 @@ const ReservationManagement = () => {
       });
     }
   };
+
+  const handleAddOptionalCharge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!optionalChargeForm.reservationId || !optionalChargeForm.description || !optionalChargeForm.amount) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Please fill all fields.' });
+      return;
+    }
+    try {
+      const amount = parseFloat(optionalChargeForm.amount);
+      if (isNaN(amount) || amount <= 0) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Please enter a valid amount.' });
+        return;
+      }
+
+      // Corrected the function call to use billingAPI.addOptionalCharge with the correct arguments
+      await billingAPI.addOptionalCharge({
+        reservationId: optionalChargeForm.reservationId,
+        description: optionalChargeForm.description,
+        amount: amount,
+      });
+
+      toast({ title: 'Optional charge added', description: 'Optional charge added successfully.' });
+      setIsAddOptionalChargeOpen(false);
+      setOptionalChargeForm({ description: '', amount: '', reservationId: '' });
+      // Optionally, re-fetch reservation details to show updated charges
+      if (selectedReservationDetails?.id === optionalChargeForm.reservationId) {
+        handleViewDetails(selectedReservationDetails.id);
+      }
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Error', description: err.response?.data?.message || 'Failed to add optional charge.' });
+    }
+  };
+
+
 
   const handleWalkInChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setWalkInForm({ ...walkInForm, [e.target.name]: e.target.value });
@@ -572,6 +610,15 @@ const ReservationManagement = () => {
                             Checkout
                           </Button>
                         )}
+                        {reservation.status === 'CHECKED_IN' && (
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => { setSelectedReservationDetails(reservation as any); setIsAddOptionalChargeOpen(true); setOptionalChargeForm({...optionalChargeForm, reservationId: reservation.id})}}
+                         >
+                           <PlusCircle className="h-4 w-4 mr-1" /> Add Charge
+                         </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -791,7 +838,6 @@ const ReservationManagement = () => {
                       Close
                     </Button>
                     <Button>
-                      <Receipt className="mr-2 h-4 w-4" />
                       Generate Invoice
                     </Button>
                   </div>
@@ -924,6 +970,39 @@ const ReservationManagement = () => {
             <Button variant="outline" onClick={() => setIsEditCheckoutOpen(false)}>Cancel</Button>
             <Button onClick={handleEditCheckout} className="bg-hotel hover:bg-hotel-dark">Update</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Optional Charge Dialog */}
+      <Dialog open={isAddOptionalChargeOpen} onOpenChange={setIsAddOptionalChargeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Optional Charge</DialogTitle>
+            <DialogDescription>Add an additional charge to this reservation.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddOptionalCharge} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input name="description" value={optionalChargeForm.description} onChange={(e) => setOptionalChargeForm({...optionalChargeForm, description: e.target.value})} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input name="amount" type="number" step="0.01" value={optionalChargeForm.amount} onChange={(e) => setOptionalChargeForm({...optionalChargeForm, amount: e.target.value})} required />
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsAddOptionalChargeOpen(false);
+                  setOptionalChargeForm({ description: '', amount: '', reservationId: '' });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-hotel hover:bg-hotel-dark">Add Charge</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </AdminLayout>
