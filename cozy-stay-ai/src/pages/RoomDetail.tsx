@@ -1,3 +1,4 @@
+// Test comment
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Layout from '@/components/Layout';
@@ -55,6 +56,8 @@ interface ReservationData {
   guests: number;
   status: string;
   totalAmount: number;
+  durationUnit?: string;
+  durationValue?: number;
   creditCard?: {
     cardNumber: string;
     expiryMonth: number;
@@ -192,6 +195,9 @@ const RoomDetail: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
 
+  const [durationUnit, setDurationUnit] = useState('night');
+  const [durationValue, setDurationValue] = useState(1);
+
   useEffect(() => {
     const fetchRoom = async () => {
       try {
@@ -207,7 +213,9 @@ const RoomDetail: React.FC = () => {
             capacity: response.data.capacity || 2,
             size: response.data.size || 320,
             bedType: response.data.bedType || 'Queen Size',
-            amenities: response.data.amenities || ['WiFi', 'TV', 'Air Conditioning'],
+            amenities: response.data.amenities || ['WiFi', 'TV', 'Air Conditioning'], // Assuming amenities are an array of strings
+ weeklyRate: response.data.weeklyRate,
+ monthlyRate: response.data.monthlyRate,
             images: [{ src: response.data.image, alt: response.data.type }]
           };
           setRoom(transformedRoom);
@@ -338,7 +346,11 @@ const RoomDetail: React.FC = () => {
         checkIn: checkIn.toISOString(),
         checkOut: checkOut.toISOString(),
         guests: parseInt(guests),
-        totalAmount: room.price,
+        // totalAmount will be calculated on the backend based on durationUnit and durationValue
+        // sending the calculated amount here is just for the frontend confirmation dialog
+        // The actual price calculation logic is now in the component's render function
+        totalAmount: parseFloat(document.querySelector('.border-t.pt-4.mb-4 .font-bold span:last-child')?.textContent?.replace('$', '') || '0'), // Get the displayed total
+        ...(durationUnit !== 'night' && durationValue !== 1 && { durationUnit, durationValue }),
         ...(useCard && {
           creditCard: {
             cardNumber: cardDetails.cardNumber,
@@ -496,8 +508,22 @@ const RoomDetail: React.FC = () => {
             <div className="lg:col-span-1">
               <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 sticky top-24">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-display font-bold text-xl">${room.price}</h3>
-                  <span className="text-gray-500">per night</span>
+                  {room.monthlyRate ? (
+                    <>
+                      <h3 className="font-display font-bold text-xl">${room.monthlyRate}</h3>
+                      <span className="text-gray-500">per month</span>
+                    </>
+                  ) : room.weeklyRate ? (
+                    <>
+                      <h3 className="font-display font-bold text-xl">${room.weeklyRate}</h3>
+                      <span className="text-gray-500">per week</span>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="font-display font-bold text-xl">${room.price}</h3>
+                      <span className="text-gray-500">per night</span>
+                    </>
+                  )}
                 </div>
                 
                 <Separator className="my-4" />
@@ -668,15 +694,84 @@ const RoomDetail: React.FC = () => {
                   )}
                 </div>
 
-                {checkIn && checkOut && (
-                  <div className="border-t pt-4 mb-4">
-                    <div className="flex justify-between mb-2">
-                      <span>${room.price} x {Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))} nights</span>
-                      <span>${room.price * Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))}</span>
+                {/* Duration Selection (for rooms with weekly/monthly rates) */}
+                {(room.weeklyRate || room.monthlyRate) ? (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium mb-1">Duration</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={durationValue}
+                        onChange={(e) => setDurationValue(parseInt(e.target.value) || 1)}
+                        className="w-1/3"
+                      />
+                      <Select value={durationUnit} onValueChange={setDurationUnit}>
+                        <SelectTrigger className="w-2/3">
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectLabel>Duration Unit</SelectLabel>
+                            <SelectItem value="night">Night(s)</SelectItem>
+                            {room.weeklyRate && <SelectItem value="week">Week(s)</SelectItem>}
+                            {room.monthlyRate && <SelectItem value="month">Month(s)</SelectItem>}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
                     </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Check-in Date */}
+                    {/* ... existing Check-in Date Popover ... */}
+
+                    {/* Check-out Date */}
+                    {/* ... existing Check-out Date Popover ... */}
+                  </>
+                )}
+
+                {/* Price Breakdown (Conditional based on selected dates or duration) */}
+                {((checkIn && checkOut) || ((room.weeklyRate || room.monthlyRate) && durationValue > 0)) && (
+                  <div className="border-t pt-4 mb-4">
+                    {(() => {
+                      let calculatedTotal = 0;
+                      let breakdownText = '';
+
+                      if (durationUnit === 'night' && checkIn && checkOut) {
+                        const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        calculatedTotal = room.price * diffDays;
+                        breakdownText = `${diffDays} night${diffDays > 1 ? 's' : ''} x $${room.price}/night`;
+                      } else if (durationUnit === 'week' && room.weeklyRate && durationValue > 0) {
+                        calculatedTotal = room.weeklyRate * durationValue;
+                        breakdownText = `${durationValue} week${durationValue > 1 ? 's' : ''} x $${room.weeklyRate}/week`;
+                      } else if (durationUnit === 'month' && room.monthlyRate && durationValue > 0) {
+                        calculatedTotal = room.monthlyRate * durationValue;
+                        breakdownText = `${durationValue} month${durationValue > 1 ? 's' : ''} x $${room.monthlyRate}/month`;
+                      }
+
+                      return (
+                        <div className="space-y-2">
+                          {breakdownText && <div className="flex justify-between text-gray-600"><span>{breakdownText}</span><span>${calculatedTotal.toFixed(2)}</span></div>}
+                          <Separator />
+                        </div>
+                      );
+                    })()}
                     <div className="flex justify-between font-bold">
                       <span>Total</span>
-                      <span>${room.price * Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))}</span>
+                      <span>${(() => {
+                         if (durationUnit === 'night' && checkIn && checkOut) {
+                          const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          return (room.price * diffDays).toFixed(2);
+                        } else if (durationUnit === 'week' && room.weeklyRate && durationValue > 0) {
+                          return (room.weeklyRate * durationValue).toFixed(2);
+                        } else if (durationUnit === 'month' && room.monthlyRate && durationValue > 0) {
+                          return (room.monthlyRate * durationValue).toFixed(2);
+                        }
+                        return '0.00'; // Default or error case
+                      })()}</span>
                     </div>
                   </div>
                 )}
@@ -720,7 +815,21 @@ const RoomDetail: React.FC = () => {
                     <li>• Check-in: {checkIn ? format(checkIn, 'PPP') : 'Not selected'}</li>
                     <li>• Check-out: {checkOut ? format(checkOut, 'PPP') : 'Not selected'}</li>
                     <li>• Guests: {guests}</li>
-                    <li>• Total: ${checkIn && checkOut ? room.price * Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)) : 0}</li>
+                    <li>• Total: ${(() => {
+                       let calculatedTotal = 0;
+                         if (durationUnit === 'night' && checkIn && checkOut) {
+                          const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          calculatedTotal = room.price * diffDays;
+                        } else if (durationUnit === 'week' && room.weeklyRate && durationValue > 0) {
+                          calculatedTotal = room.weeklyRate * durationValue;
+                        } else if (durationUnit === 'month' && room.monthlyRate && durationValue > 0) {
+                          calculatedTotal = room.monthlyRate * durationValue;
+                        }
+                        return calculatedTotal.toFixed(2);
+                      })()}
+                    </li>
+
                     <li>• Payment Method: {useCard ? 'Credit Card' : 'No Credit Card (will be cancelled at 7 PM)'}</li>
                   </ul>
                 </div>

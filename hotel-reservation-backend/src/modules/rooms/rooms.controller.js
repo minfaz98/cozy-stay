@@ -10,6 +10,8 @@ const roomSchema = z.object({
   capacity: z.number().int().positive(),
   amenities: z.array(z.string()),
   description: z.string(),
+  weeklyRate: z.number().positive().optional(),
+  monthlyRate: z.number().positive().optional(),
 });
 
 export const listRooms = async (req, res, next) => {

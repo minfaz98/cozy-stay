@@ -18,7 +18,9 @@ const reservationSchema = z.object({
     ])
     .optional()
     .default("PENDING"),
-  totalAmount: z.number().min(0),
+  totalAmount: z.number().min(0).optional(), // Make totalAmount optional as it can be calculated
+  durationUnit: z.enum(["night", "week", "month"]).optional(),
+  durationValue: z.number().int().positive().optional(),
   creditCard: z
     .object({
       cardNumber: z.string().length(16),
@@ -90,8 +92,8 @@ export const listReservations = async (req, res, next) => {
 export const createReservation = async (req, res, next) => {
   try {
     const validatedData = reservationSchema.parse(req.body);
-    const { roomId, checkIn, checkOut, guests, creditCard, totalAmount } =
-      validatedData;
+    const { roomId, checkIn, checkOut, guests, creditCard, durationUnit, durationValue } =
+ validatedData;
 
     // Check if room exists and is available
     const room = await prisma.room.findUnique({
@@ -120,6 +122,35 @@ export const createReservation = async (req, res, next) => {
       throw new AppError(400, "Room is not available for the selected dates");
     }
 
+    // Calculate total amount based on duration and room rates
+    let calculatedTotalAmount;
+    const startDate = new Date(checkIn);
+    const endDate = new Date(checkOut);
+    const numberOfNights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (durationUnit === "week" && durationValue && room.weeklyRate) {
+      calculatedTotalAmount = room.weeklyRate * durationValue;
+      // Adjust checkOut date based on durationValue in weeks
+      endDate.setDate(startDate.getDate() + durationValue * 7);
+    } else if (durationUnit === "month" && durationValue && room.monthlyRate) {
+ calculatedTotalAmount = room.monthlyRate * durationValue;
+      // Adjust checkOut date based on durationValue in months
+      endDate.setMonth(startDate.getMonth() + durationValue);
+    } else {
+      // Default to calculating by night if no specific duration or rates are available
+ calculatedTotalAmount = room.price * numberOfNights;
+    }
+
+    // Basic validation: Ensure calculated amount is not negative
+    if (calculatedTotalAmount < 0) {
+       throw new AppError(500, "Error calculating total amount");
+    }
+
+     // If totalAmount is provided in the request, use it (e.g., for discounted rates)
+     const finalTotalAmount = validatedData.totalAmount !== undefined ? validatedData.totalAmount : calculatedTotalAmount;
+
+
+
     // Set initial status based on credit card presence
     const initialStatus = creditCard ? "CONFIRMED" : "PENDING";
 
@@ -142,8 +173,8 @@ export const createReservation = async (req, res, next) => {
       roomId,
       userId: req.user.id,
       checkIn: new Date(checkIn),
-      checkOut: new Date(checkOut),
       guests,
+ checkOut: endDate, // Use the calculated end date
       status: initialStatus,
       totalAmount,
     };
@@ -161,7 +192,7 @@ export const createReservation = async (req, res, next) => {
       reservationData.billing = {
         create: {
           userId: req.user.id,
-          amount: totalAmount,
+ amount: finalTotalAmount,
           status: "PENDING",
           paymentMethod: "CREDIT_CARD",
         },

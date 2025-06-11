@@ -12,6 +12,8 @@ interface RoomPreviewProps {
   title: string;
   description: string;
   price: number;
+  weeklyRate?: number;
+  monthlyRate?: number;
   amenities: string[];
   href: string;
 }
@@ -21,7 +23,9 @@ const RoomPreview: React.FC<RoomPreviewProps> = ({
   title,
   description,
   price,
+  weeklyRate,
   amenities,
+  monthlyRate,
   href
 }) => {
   return (
@@ -33,7 +37,7 @@ const RoomPreview: React.FC<RoomPreviewProps> = ({
           className="w-full h-full object-cover"
         />
         <div className="absolute top-0 right-0 bg-hotel-accent text-white px-3 py-1 m-2 rounded">
-          ${price}/night
+          {price}/night {weeklyRate && monthlyRate && `| ${weeklyRate}/week | ${monthlyRate}/month`}
         </div>
       </div>
       <div className="md:w-2/3 p-6">
@@ -130,7 +134,9 @@ const RoomsPage = () => {
             title: `${room.type.charAt(0).toUpperCase() + room.type.slice(1)} Room`,
             description: room.description || 'Comfortable and well-appointed room',
             price: room.price,
+            weeklyRate: room.weeklyRate,
             amenities: room.amenities || ['WiFi', 'TV', 'Air Conditioning'],
+            monthlyRate: room.monthlyRate,
             href: `/rooms/${room.type.toLowerCase()}/${room.id}`
           }));
           
