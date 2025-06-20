@@ -13,6 +13,7 @@ export const generateInvoice = async (req, res, next) => {
   try {
     const { reservationId } = req.params;
 
+    // Fetch reservation with room and user info (excluding billing here)
     const reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
       include: {
@@ -24,8 +25,7 @@ export const generateInvoice = async (req, res, next) => {
             email: true,
             role: true
           }
-        },
-        billing: true
+        }
       }
     });
 
@@ -33,13 +33,39 @@ export const generateInvoice = async (req, res, next) => {
       throw new AppError(404, 'Reservation not found');
     }
 
-    // Calculate total amount
+    // Fetch all billing records (payments + invoices) for this reservation
+    const billingRecords = await prisma.billing.findMany({
+      where: { reservationId },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // Calculate paid amount by summing all 'COMPLETED' billing amounts
+    const paidAmount = billingRecords
+      .filter(b => b.status === 'COMPLETED')
+      .reduce((sum, b) => sum + b.amount, 0);
+
     const totalAmount = reservation.totalAmount;
-    const paidAmount = reservation.billing?.amount || 0;
     const remainingAmount = totalAmount - paidAmount;
 
-    const invoice = {
-      reservationId: reservation.id,
+    // Find invoice record: usually the one with status 'PENDING'
+    // If no invoice found, create one with 'PENDING' status
+    let invoice = billingRecords.find(b => b.status === 'PENDING');
+
+    if (!invoice) {
+      invoice = await prisma.billing.create({
+        data: {
+          reservationId,
+          userId: reservation.userId,
+          amount: totalAmount,
+          status: 'PENDING',
+          paymentMethod: 'CASH', // default or your business logic
+        }
+      });
+    }
+
+    // Prepare response data
+    const invoiceData = {
+      reservationId,
       user: reservation.user,
       room: reservation.room,
       checkIn: reservation.checkIn,
@@ -47,127 +73,92 @@ export const generateInvoice = async (req, res, next) => {
       totalAmount,
       paidAmount,
       remainingAmount,
-      billing: reservation.billing
+      invoice,
+      payments: billingRecords.filter(b => b.status === 'COMPLETED' || b.status === 'REFUNDED'),
     };
 
     res.json({
       status: 'success',
-      data: invoice
+      data: invoiceData
     });
   } catch (error) {
+    console.error('Error generating invoice:', error);
     next(error);
   }
 };
+
 
 export const recordPayment = async (req, res, next) => {
   try {
     const validatedData = paymentSchema.parse(req.body);
 
-    // Get reservation and check billing status
     const reservation = await prisma.reservation.findUnique({
       where: { id: validatedData.reservationId },
-      include: {
-        room: true,
-        user: true,
-        billing: true
-      }
+      include: { user: true }
     });
 
     if (!reservation) {
       throw new AppError(404, 'Reservation not found');
     }
 
-    // For company billing, create or update billing record
-    if (validatedData.method === 'COMPANY_BILLING') {
-      if (reservation.user.role !== 'COMPANY') {
-        throw new AppError(403, 'Only travel companies can use company billing');
-      }
+    // For COMPANY_BILLING method, add any role checks here if needed
 
-      const billing = await prisma.billing.upsert({
-        where: { reservationId: reservation.id },
-        update: {
-          amount: validatedData.amount,
-          status: 'PENDING',
-          paymentMethod: 'COMPANY_BILLING'
-        },
-        create: {
-          reservationId: reservation.id,
-          userId: reservation.userId,
-          amount: validatedData.amount,
-          status: 'PENDING',
-          paymentMethod: 'COMPANY_BILLING'
-        }
-      });
-
-      return res.status(201).json({
-        status: 'success',
-        data: billing
-      });
-    }
-
-    // For regular payments
-    const billing = await prisma.billing.create({
+    const payment = await prisma.billing.create({
       data: {
         reservationId: reservation.id,
         userId: reservation.userId,
         amount: validatedData.amount,
         status: 'COMPLETED',
-        paymentMethod: validatedData.method
+        paymentMethod: validatedData.method,
+        reference: validatedData.reference || null,
+        notes: null
       }
     });
 
     res.status(201).json({
       status: 'success',
-      data: billing
+      data: payment
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      next(new AppError(400, 'Invalid payment data '+error));
+      next(new AppError(400, 'Invalid payment data'));
     } else {
       next(error);
     }
   }
 };
 
+
 export const getPaymentHistory = async (req, res, next) => {
   try {
     const { reservationId } = req.params;
 
-    const billing = await prisma.billing.findUnique({
+    const billingRecords = await prisma.billing.findMany({
       where: { reservationId },
-      include: {
-        reservation: {
-          include: {
-            room: true,
-            user: true
-          }
-        }
-      }
+      orderBy: { createdAt: 'asc' }
     });
 
-    if (!billing) {
-      throw new AppError(404, 'Billing record not found');
+    if (billingRecords.length === 0) {
+      throw new AppError(404, 'No billing records found');
     }
 
     res.json({
       status: 'success',
-      data: billing
+      data: billingRecords
     });
   } catch (error) {
     next(error);
   }
 };
 
+
 export const refundPayment = async (req, res, next) => {
   try {
     const { paymentId } = req.params;
     const { reason } = req.body;
 
-    const payment = await prisma.payment.findUnique({
-      where: { id: parseInt(paymentId) },
-      include: {
-        reservation: true
-      }
+    const payment = await prisma.billing.findUnique({
+      where: { id: paymentId }
     });
 
     if (!payment) {
@@ -178,21 +169,24 @@ export const refundPayment = async (req, res, next) => {
       throw new AppError(400, 'Payment is already refunded');
     }
 
-    // Create refund record
-    const refund = await prisma.payment.create({
+    if (payment.amount <= 0) {
+      throw new AppError(400, 'Cannot refund a non-positive payment record');
+    }
+
+    const refund = await prisma.billing.create({
       data: {
         reservationId: payment.reservationId,
-        amount: -payment.amount, // Negative amount for refund
-        method: payment.method,
+        userId: payment.userId,
+        amount: -payment.amount,
         status: 'COMPLETED',
+        paymentMethod: payment.paymentMethod,
         reference: `REFUND-${payment.reference || payment.id}`,
-        notes: reason
+        notes: reason || null
       }
     });
 
-    // Update original payment status
-    await prisma.payment.update({
-      where: { id: parseInt(paymentId) },
+    await prisma.billing.update({
+      where: { id: paymentId },
       data: { status: 'REFUNDED' }
     });
 
@@ -203,4 +197,5 @@ export const refundPayment = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-}; 
+};
+

@@ -9,6 +9,8 @@ import * as BillingCtrl from './modules/billing/billing.controller.js';
 import './jobs/autoCancel.js';
 import './jobs/nightlyReport.js';
 import reservationsRouter from './modules/reservations/reservations.routes.js';
+console.log('BillingCtrl:', BillingCtrl);
+
 
 const app = express();
 app.use(cors());
@@ -37,6 +39,7 @@ app.get('/reports/revenue', authenticate(['MANAGER']), ReportCtrl.getRevenueRepo
 // Billing
 app.get('/billing/invoice/:reservationId', authenticate(['MANAGER', 'STAFF']), BillingCtrl.generateInvoice);
 app.post('/billing/payment', authenticate(['MANAGER', 'STAFF']), BillingCtrl.recordPayment);
+app.post('/billing/invoice/:reservationId', authenticate(), BillingCtrl.generateInvoice);
 app.get('/billing/history/:reservationId', authenticate(['MANAGER', 'STAFF']), BillingCtrl.getPaymentHistory);
 
 // Error handler

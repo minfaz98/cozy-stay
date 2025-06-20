@@ -50,7 +50,7 @@ const CheckAvailability = () => {
     
   });
 
-  // --- ADD THESE NEW STATE VARIABLES ---
+  // --- NEW STATE VARIABLES ---
   const [useCard, setUseCard] = useState(false); // To toggle the credit card section
   const [bulkCardDetails, setBulkCardDetails] = useState({ // Use a distinct name like bulkCardDetails
     cardNumber: '',

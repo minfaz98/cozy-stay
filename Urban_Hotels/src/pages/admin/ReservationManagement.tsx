@@ -46,6 +46,7 @@ import dayjs from 'dayjs';
 
 
 
+
 interface Reservation {
   id: string;
   roomId: string;
@@ -151,6 +152,7 @@ const ReservationManagement = () => {
   const [rooms, setRooms] = useState<any[]>([]);
   const [isEditCheckoutOpen, setIsEditCheckoutOpen] = useState(false);
   const [newCheckoutDate, setNewCheckoutDate] = useState<string | null>(null);
+  const [billingInfo, setBillingInfo] = useState<any>(null);
 
   useEffect(() => {
     // Check if user is authenticated as admin
@@ -277,19 +279,27 @@ const ReservationManagement = () => {
   const handleViewDetails = async (reservationId: string) => {
     try {
       setLoadingDetails(true);
+  
       const response = await reservationsAPI.getReservation(reservationId);
       setSelectedReservationDetails(response.data.data);
+  
+      // Use generateInvoice to get billing/invoice info
+      const billingRes = await billingAPI.generateInvoice(reservationId);
+      setBillingInfo(billingRes.data.data);
+  
       setIsDetailsDialogOpen(true);
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.response?.data?.message || "Failed to fetch reservation details"
+        description: error.response?.data?.message || "Failed to fetch reservation or billing details",
       });
     } finally {
       setLoadingDetails(false);
     }
   };
+  
+  
 
   const handleCheckout = async (reservationId: string) => {
     try {
@@ -473,6 +483,24 @@ const handleWalkInSubmit = async (e: React.FormEvent) => {
     });
   } finally {
     setWalkInLoading(false);
+  }
+};
+
+const handleGenerateInvoice = async (reservationId: string) => {
+  try {
+    const invoice = await billingAPI.generateInvoice(reservationId);
+    toast({
+      title: "Invoice generated successfully",
+      variant: "default",  // changed from "success"
+    });
+
+    // Optional: Refetch reservation details to refresh the billing tab
+    await handleViewDetails(reservationId);
+  } catch (error) {
+    toast({
+      title: "Failed to generate invoice",
+      variant: "destructive",
+    });
   }
 };
 
@@ -839,34 +867,31 @@ const handleWalkInSubmit = async (e: React.FormEvent) => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      {selectedReservationDetails.payments && selectedReservationDetails.payments.length > 0 ? (
-                        <div className="space-y-4">
-                          {selectedReservationDetails.payments.map((payment) => (
-                            <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                              <div className="flex items-center space-x-4">
-                                <CreditCard className="h-5 w-5 text-muted-foreground" />
-                                <div>
-                                  <p className="font-medium">${payment.amount}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {payment.method} - {formatDateLong(payment.createdAt)}
-                                  </p>
-                                </div>
-                              </div>
-                              <span className={`px-2 py-1 rounded-full text-xs ${
-                                payment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                                payment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
-                              }`}>
-                                {payment.status}
-                              </span>
-                            </div>
-                          ))}
+                    {billingInfo ? (
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <CreditCard className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">${billingInfo.amount}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {billingInfo.paymentMethod} - {formatDateLong(billingInfo.createdAt)}
+                          </p>
                         </div>
-                      ) : (
-                        <div className="text-center py-4 text-muted-foreground">
-                          No payment records found
-                        </div>
-                      )}
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        billingInfo.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                        billingInfo.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {billingInfo.status}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No payment records found
+                    </div>
+                  )}
+
                     </CardContent>
                   </Card>
 
@@ -874,10 +899,10 @@ const handleWalkInSubmit = async (e: React.FormEvent) => {
                     <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
                       Close
                     </Button>
-                    <Button>
-                      <Receipt className="mr-2 h-4 w-4" />
-                      Generate Invoice
-                    </Button>
+                    <Button onClick={() => handleGenerateInvoice(selectedReservationDetails.id)}>
+                    <Receipt className="mr-2 h-4 w-4" />
+                    Generate Invoice
+                  </Button>
                   </div>
                 </div>
               </TabsContent>
@@ -978,7 +1003,7 @@ const handleWalkInSubmit = async (e: React.FormEvent) => {
                 <Input
                     name="checkIn"
                     type="date"
-                    // --- CHANGE THIS LINE ---
+                    // --- New line ---
                     value={walkInForm.checkIn ? walkInForm.checkIn.split('T')[0] : ''} // Get only YYYY-MM-DD part
                     onChange={handleWalkInChange}
                     required

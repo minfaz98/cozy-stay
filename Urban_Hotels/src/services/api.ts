@@ -146,6 +146,9 @@ export const billingAPI = {
   },
   refundPayment: (paymentId: string, reason: string) => {
     return api.post(`/billing/refund/${paymentId}`, { reason });
+  },
+  getBilling: (reservationId: string) => {
+    return api.get(`/billing/${reservationId}`);
   }
 };
 

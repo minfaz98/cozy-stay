@@ -172,7 +172,7 @@ export const getCurrentUser = async (req, res, next) => {
   }
 }; 
 
-// --- ADD THIS NEW CONTROLLER FUNCTION ---
+// --- NEW CONTROLLER FUNCTION ---
 export const getUserByEmail = async (req, res, next) => {
   try {
     const { email } = req.query; // Get email from query parameter (e.g., /users/by-email?email=test@example.com)
