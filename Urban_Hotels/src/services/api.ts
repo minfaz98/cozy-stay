@@ -100,7 +100,7 @@ export const reservationsAPI = {
     checkOut: string;
     discountRate: number;
     specialRequests?: string;
-    // --- ADD THIS LINE HERE to the inline type definition ---
+    // ---  inline type definition ---
     creditCard: CreditCardInput; // Now TypeScript knows this property exists
   }) => {
     return api.post('/reservations/bulk', data);

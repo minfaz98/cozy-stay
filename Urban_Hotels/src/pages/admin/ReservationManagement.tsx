@@ -284,8 +284,8 @@ const ReservationManagement = () => {
       setSelectedReservationDetails(response.data.data);
   
       // Use generateInvoice to get billing/invoice info
-      const billingRes = await billingAPI.generateInvoice(reservationId);
-      setBillingInfo(billingRes.data.data);
+      setBillingInfo(null); 
+
   
       setIsDetailsDialogOpen(true);
     } catch (error: any) {
@@ -488,21 +488,23 @@ const handleWalkInSubmit = async (e: React.FormEvent) => {
 
 const handleGenerateInvoice = async (reservationId: string) => {
   try {
-    const invoice = await billingAPI.generateInvoice(reservationId);
+    const response = await billingAPI.generateInvoice(reservationId);
     toast({
-      title: "Invoice generated successfully",
-      variant: "default",  // changed from "success"
+      title: "Invoice Generated",
+      description: "Invoice generated successfully",
     });
 
-    // Optional: Refetch reservation details to refresh the billing tab
-    await handleViewDetails(reservationId);
-  } catch (error) {
+    // Update billing info in state after generating
+    setBillingInfo(response.data.data);
+  } catch (error: any) {
     toast({
-      title: "Failed to generate invoice",
       variant: "destructive",
+      title: "Error",
+      description: error.response?.data?.message || "Failed to generate invoice",
     });
   }
 };
+
 
   const handleEditCheckout = async () => {
     if (!selectedReservationDetails || !newCheckoutDate) return;
@@ -867,32 +869,33 @@ const handleGenerateInvoice = async (reservationId: string) => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                    {billingInfo ? (
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <CreditCard className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">${billingInfo.amount}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {billingInfo.paymentMethod} - {formatDateLong(billingInfo.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        billingInfo.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                        billingInfo.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {billingInfo.status}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 text-muted-foreground">
-                      No payment records found
-                    </div>
-                  )}
+                    {billingInfo?.invoice ? (
+  <div className="flex items-center justify-between p-4 border rounded-lg">
+    <div className="flex items-center space-x-4">
+      <CreditCard className="h-5 w-5 text-muted-foreground" />
+      <div>
+        <p className="font-medium">${billingInfo.invoice.amount}</p>
+        <p className="text-sm text-muted-foreground">
+          {billingInfo.invoice.paymentMethod} - {formatDateLong(billingInfo.invoice.createdAt)}
+        </p>
+      </div>
+    </div>
+    <span className={`px-2 py-1 rounded-full text-xs ${
+      billingInfo.invoice.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+      billingInfo.invoice.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+      'bg-red-100 text-red-800'
+    }`}>
+      {billingInfo.invoice.status}
+    </span>
+  </div>
+) : (
+  <div className="text-center py-4 text-muted-foreground">
+    No invoice or payment records found.
+  </div>
+)}
 
-                    </CardContent>
+</CardContent>
+
                   </Card>
 
                   <div className="flex justify-end space-x-2">
